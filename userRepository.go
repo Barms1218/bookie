@@ -10,6 +10,7 @@ type User struct {
 	ID             int
 	Email          string
 	password       string
+	age int
 	dateJoined     time.Time
 	numBooks       int
 	favoriteAuthor string
@@ -57,5 +58,13 @@ func (repo *UserRepository) GetUserByID(ID int) (User, error) {
 }
 
 func (repo *UserRepository) CreateUser(email string, password string) error {
+	userName, error := GetUserByName(email) 
 
+	if userName != nil {
+		return errors.New("This username already exists.")
+	}
+
+	repo.db.QueryRow(
+		"INSERT email, password INTO users"
+	)
 }
