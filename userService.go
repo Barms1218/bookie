@@ -1,39 +1,21 @@
 package main
 
 import (
-	"database/sql"
+	"errors"
+	"strings"
 	"time"
 )
 
-type User struct {
-	ID             int
-	Username       string
-	password       string
-	dateJoined     time.Time
-	numBooks       int
-	favoriteAuthor string
+type UserService struct {
+	Repo UserRepository
 }
 
-type UserRepository struct {
-	db *sql.DB
-}
+func validPassword(password string) error {
+	trimmedPassword := strings.TrimSpace(password)
+	hasSpecialChars := strings.ContainsAny(trimmedPassword, "!@#$%^&*()_+")
 
-func NewUserRepository(db *sql.DB) *UserRepository {
-	return &UserRepository{
-		db: db,
-	}
-}
-
-func (repo *UserRepository) GetUserByName(Username string) (User, error) {
-	var u User
-	if err := repo.db.QueryRow("SELECT id, userName FROM users WHERE userName = ?", Username).Scan(
-		&u.ID,
-		&u.Username,
-	); err != nil {
-		if err == sql.ErrNoRows {
-			return u, err
-		}
+	if !hasSpecialChars {
+		return errors.New("Password must contain at least one special character.")
 	}
 
-	return u, nil
 }

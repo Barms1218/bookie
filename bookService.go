@@ -82,3 +82,5 @@ func (r *BookRepository) GetBooksByAuthor(authorStr string) ([]Book, error) {
 //
 //	return rows, err
 //}
+
+func (r *BookRepository) AddBook(title string, author string)
