@@ -1,13 +1,9 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import os
-from dotenv import load_dotenv
 
 class Settings(BaseSettings):
-    load_dotenv()
+    google_api_key: str = "AIzaSyAKonDfT8tX47eLcQhNkZWy7_4k57RqoEA"
+    database_url: str = 'user=randenrms dbname=bookie password=D@rkF@th3r! host=/var/run/postgresql sslmode=disable' 
 
-    google_api_key = os.getenv("API_KEY")
-    database_url = os.getenv("DB_URL")
-
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 settings = Settings()
