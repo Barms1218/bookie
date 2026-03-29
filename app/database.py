@@ -28,11 +28,17 @@ class Book(Base):
 
 
 class UserBook(Base):
-
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    book_id: Mapped[int] = mapped_column(ForeignKey("books.id"))
+    
+    pass
 
 class Journals(Base):
     __tablename__ = "journals"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    book_id: Mapped[int] = mapped_column(ForeignKey("book.id"))
+    book_id: Mapped[int] = mapped_column(ForeignKey("book.id")) #journals belong to a book
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id")) # And a user
+    content: Mapped[str] = mapped_column(String(500)) #Limit content to 500 characters
 
