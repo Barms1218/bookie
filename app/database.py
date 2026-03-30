@@ -88,7 +88,7 @@ class BookClub(Base):
     favorite_book: Mapped[Uuid] = mapped_column(ForeignKey("books.id"))
     created_on: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    users: Mapped[List["User"]] = Relationship(back_populates="clubs")
+    users: Mapped[List["User"]] = Relationship(secondary="club_members", back_populates="clubs")
 
 class ClubMember(Base):
     __tablename__ = "club_members"
