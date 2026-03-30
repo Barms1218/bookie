@@ -1,11 +1,11 @@
 from fastapi import FastAPI 
 from app.lifespan import lifespan
 import uvicorn
-from routers import books, users
+from app.routers import books, users
 
 app = FastAPI(lifespan=lifespan)
     
-app.include_router(books.router, prefix="/books", tags=["term"])
+app.include_router(books.router, prefix="/books", tags=["books"])
 
 @app.get("/")
 async def root():

@@ -1,5 +1,5 @@
 from fastapi import Request, APIRouter, Depends
-from services import GoogleBooksService
+from app.services import GoogleBooksService
 from app.config import settings
 
 
