@@ -1,7 +1,7 @@
 from fastapi import Request, APIRouter, Depends
-from app.services import GoogleBooksService
+from app.services.book_services import GoogleBooksService
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.config import settings
+from app.core.config import settings 
 from app.database.engine import get_db
 
 router = APIRouter(prefix="/books", tags=["books"])

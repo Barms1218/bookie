@@ -1,11 +1,11 @@
 from fastapi import FastAPI 
-from app.lifespan import lifespan
+from app.core.lifespan import lifespan
 import uvicorn
-from app.routers import books, users
+from app.api.api import api_router 
 
 app = FastAPI(lifespan=lifespan)
     
-app.include_router(books.router)
+app.include_router(api_router)
 
 @app.get("/")
 async def root():

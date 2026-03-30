@@ -1,8 +1,9 @@
 import httpx
-from app.models import BookIngestSchema
+from app.schemas.book import BookIngestSchema
 from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.repositories.book_repository import search_books_local 
 
 class GoogleBooksService:
     def __init__(self, api_key: str, client: httpx.AsyncClient, db: AsyncSession):
@@ -12,6 +13,10 @@ class GoogleBooksService:
         self.session = db
 
     async def get_book_with_term(self, term: str):
+            db_books = search_books_local(self.session, term) 
+           
+            if db_books:
+                return db_books
             params ={"q": f"term:{term}", "key": self.api_key}
             response = await self.client.get(self.base_url, params=params)
  
@@ -26,7 +31,6 @@ class GoogleBooksService:
             valid_books = []
             for item in items:
                 volume_info = item.get("volumeInfo", {})
-
                 try:
                     book = BookIngestSchema(**volume_info)
                     valid_books.append(book)
@@ -35,7 +39,5 @@ class GoogleBooksService:
                     print(f"Skipping book: {e}")
                     continue
 
-            with self.session.connect() as conn:
-                conn.execute(insert(books), valid_books)
-
+            self.session.conne
             return valid_books 
