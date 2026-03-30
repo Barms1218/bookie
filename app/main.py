@@ -5,7 +5,7 @@ from app.routers import books, users
 
 app = FastAPI(lifespan=lifespan)
     
-app.include_router(books.router, prefix="/books", tags=["books"])
+app.include_router(books.router)
 
 @app.get("/")
 async def root():
