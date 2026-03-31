@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, List, Optional 
-from sqlalchemy import CheckConstraint, ForeignKey, Uuid, String, Integer, Float
+from sqlalchemy import CheckConstraint, ForeignKey, String, Integer, Float
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
-from sqlalchemy import ForeignKey, Uuid, String
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, Relationship
 from .base import Base
 import uuid
@@ -30,8 +30,8 @@ class UserBook(Base):
 
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    book_id: Mapped[int] = mapped_column(ForeignKey("books.id"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
     reading_progress: Mapped[int] = mapped_column(Integer, default=0) 
     date_completed: Mapped[Optional[datetime.datetime]]
     rating: Mapped[Float] = mapped_column(Float, default=0) 

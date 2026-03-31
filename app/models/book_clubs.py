@@ -24,6 +24,6 @@ class ClubMember(Base):
     __tablename__ = "club_members"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[Uuid] = mapped_column(ForeignKey("users.id"))
-    club_id: Mapped[Uuid] = mapped_column(ForeignKey("book_clubs.id"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    club_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("book_clubs.id"))
     role: Mapped[str] = mapped_column(String, default="member")
