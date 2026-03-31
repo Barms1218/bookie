@@ -1,4 +1,6 @@
 from fastapi import APIRouter
-from endpoints import books, users
+from app.api.endpoints import books, users
 
-router = APIRouter(books.APIRouter)
+api_router = APIRouter()
+api_router.include_router(books.router)
+

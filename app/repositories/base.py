@@ -12,10 +12,10 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         self.model = model
 
     def get(self, db: Session, id: Any) -> Optional[ModelType]:
-        return db.query(self.model).filter(self.model.id == id).first()
+     return db.query(self.model).filter(getattr(self.model, "id") == id).first()
 
     def create(self, db: Session, *, obj_in: CreateSchemaType):
-        db_obj = self.model(**obj_in.dict())
+        db_obj = self.model(**obj_in.model_dump())
         db.add(db_obj)
         db.commit()
         return db_obj

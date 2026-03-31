@@ -6,7 +6,7 @@ from app.database.engine import get_db
 
 router = APIRouter(prefix="/books", tags=["books"])
 
-def get_google_service(request: Request, session: AsyncSession) -> GoogleBooksService:
+def get_google_service(request: Request, session: AsyncSession = Depends(get_db)) -> GoogleBooksService:
     client = request.app.state.http_client
     return GoogleBooksService(
             api_key=str(settings.google_api_key), 
@@ -14,9 +14,7 @@ def get_google_service(request: Request, session: AsyncSession) -> GoogleBooksSe
 
 
 @router.get("/search/{term}")
-async def search_books(term: str, db: AsyncSession = Depends(get_db), service: GoogleBooksService = Depends(get_google_service)):
-
+async def search_books(term: str, service: GoogleBooksService = Depends(get_google_service)):
     data = await service.get_book_with_term(term)
     return {"data": data }
-
 

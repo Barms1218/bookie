@@ -1,26 +1,23 @@
-from datetime import time, timezone
-from typing import List
-from typing import Optional
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Uuid
-from sqlalchemy import String, JSON, func, Integer, Float
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import Relationship
+from typing import TYPE_CHECKING, List, Optional 
+from sqlalchemy import CheckConstraint, ForeignKey, Uuid, String, Integer, Float
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy import ForeignKey, Uuid, String
+from sqlalchemy.orm import Mapped, mapped_column, Relationship
+from .base import Base
+import uuid
 import datetime
 
-class Base(DeclarativeBase):
-    pass
+if TYPE_CHECKING:
+    from .user import Journal, User
 
 
 class Book(Base):
     __tablename__ = "books"
 
-    id: Mapped[Uuid] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     isbn: Mapped[Optional[str]] = mapped_column(String(20), index=True, unique=True)
-    title: Mapped[str] = mapped_column(String(255))
-    authors: Mapped[List[str]] = mapped_column(JSONB)
+    title: Mapped[str] = mapped_column(String(255), index=True)
+    authors: Mapped[List[str]] = mapped_column(ARRAY(String)) 
     page_count: Mapped[int] = mapped_column(Integer, default=0)
     meta_data: Mapped[dict] = mapped_column(JSONB)
 
@@ -31,7 +28,8 @@ class Book(Base):
 class UserBook(Base):
     __tablename__ = "user_books"
 
-    id: Mapped[Uuid] = mapped_column(primary_key=True)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     book_id: Mapped[int] = mapped_column(ForeignKey("books.id"))
     reading_progress: Mapped[int] = mapped_column(Integer, default=0) 
@@ -41,12 +39,11 @@ class UserBook(Base):
 
     # Relationships
     user: Mapped["User"] = Relationship(back_populates="user_books")
-    book: Mapped["Book"] = Relationship(back_populates="user_books")
 
-    journal: Mapped[List["Journal"]] = Relationship(back_populates="user_book")
+    journals: Mapped[List["Journal"]] = Relationship(back_populates="user_book")
 
     __table_args__ = (
-            CheckConstraint('rating >= 0 AND rating <= 5')
+            CheckConstraint('rating >= 0 AND rating <= 5', name="rating_between_0_and_5"),
             )
 
 
