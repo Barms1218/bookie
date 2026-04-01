@@ -7,7 +7,7 @@ class JournalIngestSchema(BaseModel):
     user_id: uuid.UUID = Field(alias="userID")
     user_book_id: uuid.UUID = Field(alias="bookID")
     content: str
-    page: Optional[int]
+    page: Optional[int] = None
 
 
     @field_validator("content")

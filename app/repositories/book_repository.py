@@ -59,7 +59,7 @@ class BookRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_book_with_id(self, id: uuid.UUID) ->: Optional[Book]:
+    async def get_book_with_id(self, id: uuid.UUID) -> Optional[Book]:
         stmt = select(Book).where(Book.id == id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
