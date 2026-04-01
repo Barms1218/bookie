@@ -15,7 +15,7 @@ class BookIngestSchema(BaseModel):
     title: str 
     isbn: str
     authors: List[str]= Field(default_factory=list) # Make sure every model has its own list
-    page_count: int = Field(0, alias="pageCount")
+    page_count: int = Field(default=0, alias="pageCount")
     
     metadata: BookMetadata
 

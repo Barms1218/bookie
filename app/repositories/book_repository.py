@@ -4,6 +4,7 @@ from sqlalchemy.dialects.postgresql import insert
 from app.schemas.book import BookIngestSchema
 from app.models.book import Book
 from sqlalchemy.ext.asyncio import AsyncSession
+import uuid
 
 
 class BookRepository:
@@ -55,6 +56,11 @@ class BookRepository:
 
     async def get_book_by_isbn(self, isbn: str) -> Optional[Book]:
         stmt = select(Book).where(Book.isbn == isbn)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_book_with_id(self, id: uuid.UUID) ->: Optional[Book]:
+        stmt = select(Book).where(Book.id == id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 

@@ -8,7 +8,8 @@ import uuid
 import datetime
 
 if TYPE_CHECKING:
-    from .user import Journal, User
+    from .user import User
+    from .journal import Journal, Quote
 
 
 class Book(Base):
@@ -39,8 +40,8 @@ class UserBook(Base):
 
     # Relationships
     user: Mapped["User"] = Relationship(back_populates="user_books")
-
     journals: Mapped[List["Journal"]] = Relationship(back_populates="user_book")
+    quotes: Mapped[List["Quote"]] = Relationship(back_populates="user_book")
 
     __table_args__ = (
             CheckConstraint('rating >= 0 AND rating <= 5', name="rating_between_0_and_5"),
