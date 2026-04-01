@@ -1,10 +1,14 @@
-from pydantic import field_validator, EmailStr, SecretStr
+from pydantic import BaseModel, field_validator, EmailStr, SecretStr, Optional
 import string
+import datetime
+import uuid
 
-class UserIngestSchema:
+class UserIngestSchema(BaseModel):
     name: str  
     email: EmailStr
-    password: SecretStr 
+    password: Optional[SecretStr] = None
+    google_id: Optional[str] = None
+    apple_id: Optional[str] = None
 
     @field_validator("name")
     @classmethod
@@ -27,11 +31,11 @@ class UserIngestSchema:
 
 
 class User:
-    def __init__(self, name: str):
+    def __init__(self, id: uuid.UUID, name: str, 
+                 email: str, date_joined: datetime.datetime):
         self.name = name
-    #books: 
+        self.email = email
+        self.id = id,
+        self.date_joined = date_joined
+        
 
-class Credentials:
-    def __init__(self, email: EmailStr, password: SecretStr):
-        self.email= email
-        self.password = password

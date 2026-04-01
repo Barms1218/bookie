@@ -1,20 +1,19 @@
 import httpx
-from app.repositories import book_repository
+from app.dependencies import UnitOfWork
 from app.schemas.book import BookIngestSchema
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.book_repository import BookRepository 
 
 class GoogleBooksService:
-    def __init__(self, api_key: str, client: httpx.AsyncClient, repo: BookRepository):
+    def __init__(self, api_key: str, client: httpx.AsyncClient, uow: UnitOfWork):
         self.api_key = api_key
         self.base_url = "https://www.googleapis.com/books/v1/volumes"
         self.client = client
-        self.repo = repo
+        self.uow = uow 
 
     async def get_book_with_term(self, term: str):
-            db_books = await self.repo.search_books_local(term) 
+            db_books = await self.uow.books.search_books_local(term) 
            
             if db_books:
                 return db_books
@@ -34,7 +33,7 @@ class GoogleBooksService:
                 volume_info = item.get("volumeInfo", {})
                 try:
                     book = BookIngestSchema(**volume_info)
-                    saved_book = await self.repo.save_book_to_db(book)
+                    saved_book = await self.uow.books.save_book_to_db(book)
                     valid_books.append(saved_book)
                 except ValidationError as e:
                     # If a book has bad data, ignore it and move on

@@ -21,7 +21,7 @@ class BookIngestSchema(BaseModel):
 
     @model_validator(mode='before')
     @classmethod
-    def wrapp_metadata(cls, data: dict) -> dict:
+    def wrapp_metadata(cls, data: dict):
         # Get the identifiers list
        identifiers = data.get("industryIdentifiers", [])
        found_isbn = "UNKNOWN"

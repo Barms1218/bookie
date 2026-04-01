@@ -37,18 +37,20 @@ class BookRepository:
     # Upsert function. If there's a conflict on the isbn update the title
     async def save_book_to_db(self, book_schema: BookIngestSchema):
         # Prepare the insert
-        stmt = insert(Book).values(
-            isbn=book_schema.isbn,
-            title=book_schema.title,
-            authors=book_schema.authors,
-            meta_data=book_schema.metadata.model_dump()
-        ).on_conflict_do_update(
-            index_elements=['isbn'],
-            set_={"title": book_schema.title}
-        ).returning(Book) # Vital to showing what was inserted
+        cleaned_data = book_schema.model_dump(by_alias=True)
+        stmt = insert(Book).values(**cleaned_data)
+
+        upsert_stmt = stmt.on_conflict_do_update(
+                index_elements=['isbn'],
+                set_={
+                    "title": stmt.excluded.title,
+                    "authors": stmt.excluded.authors,
+                    "meta_data": stmt.excluded.meta_data,
+                    "page_count": stmt.excluded.page_count
+                    }
+                ).returning(Book)
         
-        result = await self.db.execute(stmt)
-        await self.db.commit() # This pushes the data to Postgres
+        result = await self.db.execute(upsert_stmt)
         return result.scalar_one()
 
     async def get_book_by_isbn(self, isbn: str) -> Optional[Book]:
