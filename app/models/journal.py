@@ -16,14 +16,12 @@ class Journal(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_books.id")) #journals belong to a book
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id")) # And a user
-    quote_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("quotes.id"), default=None)
     content: Mapped[str] = mapped_column(String(2000)) #Limit content to 500 characters
     date_made: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now()) 
 
     # Relationships
     user: Mapped["User"] = Relationship(back_populates="journals")
     user_book: Mapped["UserBook"] = Relationship(back_populates="journals")
-    quote: Mapped[Optional["Quote"]] = Relationship(back_populates="journal")
 
 
 class Quote(Base):
@@ -38,4 +36,3 @@ class Quote(Base):
 
     # Relationships
     user: Mapped["User"] = Relationship(back_populates="quotes")
-    journal: Mapped["Journal"] = Relationship(back_populates="quote")
