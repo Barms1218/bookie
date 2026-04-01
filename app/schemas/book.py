@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 from typing import Optional, List, Dict, Any
-
+from datetime import datetime
+import uuid
 
 class BookMetadata(BaseModel):
     categories: List[str] = Field(default_factory=list)
@@ -43,4 +44,18 @@ class BookIngestSchema(BaseModel):
 
        return data
 
+class DetailedBook(BaseModel):
+    id: uuid.UUID
+    thumbnail: Optional[str]
+    title: str
+    authors: List[str] = Field(default_factory=list)
+    current_page: int
+    total_pages: Optional[int]
+    added_at: datetime
+
+class BookSearchResult(BaseModel):
+    id: uuid.UUID
+    isbn: Optional[str]
+    title: str
+    authors: List[str] = Field(default_factory=list)
 

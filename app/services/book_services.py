@@ -3,7 +3,7 @@ from app.dependencies import UnitOfWork
 from app.schemas.book import BookIngestSchema
 from fastapi import HTTPException
 from pydantic import ValidationError
-from app.repositories.book_repository import BookRepository 
+
 
 class GoogleBooksService:
     def __init__(self, api_key: str, client: httpx.AsyncClient, uow: UnitOfWork):
@@ -41,3 +41,6 @@ class GoogleBooksService:
                     continue
 
             return valid_books 
+
+    async def select_books(self, search_results: list[BookSearchResult]):
+        pass

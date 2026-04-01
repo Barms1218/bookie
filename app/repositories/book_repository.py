@@ -1,7 +1,8 @@
+from re import search
 from typing import Optional, List
 from sqlalchemy import select, or_, func
 from sqlalchemy.dialects.postgresql import insert
-from app.schemas.book import BookIngestSchema
+from app.schemas.book import BookIngestSchema, BookSearchResult
 from app.models.book import Book
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
@@ -11,7 +12,7 @@ class BookRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def search_books_local(self, term: str) -> List[Book]:
+    async def search_books_local(self, term: str) -> List[BookSearchResult]:
         search_term = f"%{term}%"
         stmt = (
                 select(Book)
@@ -31,9 +32,19 @@ class BookRepository:
                 )
                 .limit(20) # Good practice to avoid dumping 10k rows into memory
         )
-
         result = await self.db.execute(stmt) # Get the rows object from sql
-        return list(result.scalars().all()) # Extract the Book models from the rows
+        
+        search_results = list(result.scalars().all()) # Extract the Book models from the rows
+        
+        # List comprehension to turn all the search results into something the user will want to see.
+        # They can get more information when looking at the books in-depth in their library.
+        books: list[BookSearchResult] = [
+                BookSearchResult(id=s.id, isbn=s.isbn, title=s.title, authors=s.authors)
+                for s in search_results
+                ]
+
+        return books
+        
 
     # Upsert function. If there's a conflict on the isbn update the title
     async def save_book_to_db(self, book_schema: BookIngestSchema):

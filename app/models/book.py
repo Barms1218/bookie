@@ -33,9 +33,10 @@ class UserBook(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
-    reading_progress: Mapped[int] = mapped_column(Integer, default=0) 
+    current_page: Mapped[int] = mapped_column(Integer, default=0) 
     date_completed: Mapped[Optional[datetime.datetime]]
     rating: Mapped[Float] = mapped_column(Float, default=0) 
+    status: str = "to-read"
     
 
     # Relationships
