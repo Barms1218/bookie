@@ -32,7 +32,7 @@ class UserIngestSchema(BaseModel):
 
 class User:
     def __init__(self, id: uuid.UUID, name: str, 
-                 email: str, date_joined: datetime.datetime):
+        email: str, date_joined: datetime.datetime):
         self.name = name
         self.email = email
         self.id = id,

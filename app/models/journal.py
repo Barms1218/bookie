@@ -32,9 +32,9 @@ class Quote(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_books.id")) #journals belong to a book
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id")) 
-    character: Mapped[str] = mapped_column(Text, default="")
+    character: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     content: Mapped[str] = mapped_column(Text)
-    page: Mapped[int] = mapped_column(Integer, default=0)
+    page: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # Relationships
     user: Mapped["User"] = Relationship(back_populates="quotes")

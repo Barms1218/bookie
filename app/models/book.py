@@ -18,7 +18,7 @@ class Book(Base):
     isbn: Mapped[Optional[str]] = mapped_column(String(20), index=True, unique=True)
     title: Mapped[str] = mapped_column(String(255), index=True)
     authors: Mapped[List[str]] = mapped_column(ARRAY(String)) 
-    page_count: Mapped[int] = mapped_column(Integer, default=0)
+    page_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     meta_data: Mapped[dict] = mapped_column(JSONB)
 
     def __repr__(self) -> str:

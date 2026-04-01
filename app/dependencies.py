@@ -1,4 +1,6 @@
 from app.core.config import settings 
+from app.repositories.journal_repository import JournalRepository
+from app.repositories.quote_repository import QuoteRepository
 from app.services.book_services import GoogleBooksService
 from app.services.user_service import UserService
 from fastapi import Request, Depends
@@ -19,10 +21,18 @@ def get_book_repo(db: AsyncSession = Depends(get_db)) -> BookRepository:
 def get_user_repo(db: AsyncSession = Depends(get_db)) -> UserRepository:
     return UserRepository(db = db)
 
+def get_journal_repo(db: AsyncSession = Depends(get_db)) -> JournalRepository:
+    return JournalRepository(db = db)
+
+def get_quote_repo(db: AsyncSession = Depends(get_db)) -> QuoteRepository:
+    return QuoteRepository(db = db)
+
 def get_unit_of_work(db: AsyncSession =Depends(get_db),
                     books: BookRepository = Depends(get_book_repo), 
-                     users: UserRepository = Depends(get_user_repo)) -> UnitOfWork:
-    return UnitOfWork(db=db, books=books, users=users)
+                     users: UserRepository = Depends(get_user_repo),
+                     quotes: QuoteRepository = Depends(get_quote_repo),
+                     journals: JournalRepository = Depends(get_journal_repo)) -> UnitOfWork:
+    return UnitOfWork(db=db, books=books, users=users, quotes=quotes, journals=journals)
 
 class Base(DeclarativeBase):
     pass
@@ -40,9 +50,17 @@ def get_user_service(request: Request, uow: UnitOfWork = Depends(get_unit_of_wor
     return UserService(client=client, uow=uow)
 
 class UnitOfWork:
-    def __init__(self, db: AsyncSession, books: BookRepository, users: UserRepository):
+    def __init__(
+        self, 
+        db: AsyncSession,
+        books: BookRepository, 
+        users: UserRepository, 
+        quotes: QuoteRepository,
+        journals: JournalRepository):
         self.db = db
         self.books = books
         self.users = users
+        self.quotes = quotes
+        self.journals = journals
 
 
