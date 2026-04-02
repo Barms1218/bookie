@@ -31,11 +31,20 @@ class TagRepository:
                 ]
         return tags
 
-    async def create_book_tag(self, tag: PublicTag) -> PublicTag:
-        tag_data = tag.model_dump()
-
-        stmt = insert(BookTag).values(**tag_data).returning(PublicTag)
-        
+    async def create_book_tag(self, tag: TagIngestSchema) -> BookTag:
+        stmt = (
+                insert(BookTag)
+                .values(
+                    user_bok_id=tag.book_id,
+                    tag_id=tag.id,
+                    rating_value=tag.rating
+                    )
+                .on_conflict_do_update(
+                    index_elements=['user_book_id', 'tag_id'],
+                    set_={BookTag.rating_value: tag.rating }
+                    )
+                .returning(BookTag)
+                )
         result = await self.db.execute(stmt)
 
         return result.scalar_one()
