@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     from .journal import Journal
     from .quote import Quote
     from .note import Note
-    from .tag import Tag
     from .associations import BookTag
 
 class UserBook(Base):
@@ -24,7 +23,6 @@ class UserBook(Base):
     # Foreign Keys
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
-    genre_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("genres.id"))
 
     current_page: Mapped[int] = mapped_column(Integer, default=0) 
     date_completed: Mapped[Optional[datetime.datetime]]
@@ -38,7 +36,6 @@ class UserBook(Base):
     journals: Mapped[List["Journal"]] = Relationship(back_populates="user_book")
     quotes: Mapped[List["Quote"]] = Relationship(back_populates="user_book")
     notes: Mapped[List["Note"]] = Relationship(back_populates="user_book")
-    tags: Mapped[List["Tag"]] = Relationship(secondary="book_tags", back_populates="user_books") 
     book_tags: Mapped[list["BookTag"]] = Relationship(back_populates="user_books")
 
     __table_args__ = (

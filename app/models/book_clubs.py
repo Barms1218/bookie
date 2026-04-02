@@ -7,6 +7,7 @@ import uuid
 
 if TYPE_CHECKING:
     from .user import User
+
 class BookClub(Base):
     __tablename__ = "book_clubs"
 

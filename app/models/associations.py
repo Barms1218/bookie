@@ -13,8 +13,6 @@ class BookTag(Base):
 
     user_book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_books.id"), primary_key=True)
     tag_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tags.id"), primary_key=True)
-    
-    rating: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     # Relationships
     user_books: Mapped["UserBook"] = Relationship(back_populates="book_tags")

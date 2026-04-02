@@ -2,7 +2,8 @@ from typing import Optional, List
 from sqlalchemy import select, or_, func
 from sqlalchemy.dialects.postgresql import insert
 from app.schemas.book import BookIngestSchema, BookSearchResult, UserBookIngest 
-from app.models.book import Book, UserBook
+from app.models.book import Book
+from app.models.user_book import UserBook
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 
@@ -57,9 +58,9 @@ class BookRepository:
         upsert_stmt = stmt.on_conflict_do_update(
                 index_elements=['isbn'],
                 set_={
-                    "title": stmt.excluded.title,
-                    "page_count": stmt.excluded.page_count,
-                    "meta_data": stmt.excluded.meta_data
+                    Book.title: stmt.excluded.title,
+                    Book.page_count: stmt.excluded.page_count,
+                    Book.meta_data: stmt.excluded.meta_data
                     }
                 ).returning(Book)
         result = await self.db.execute(upsert_stmt)
