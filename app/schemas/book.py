@@ -44,14 +44,25 @@ class BookIngestSchema(BaseModel):
 
        return data
 
+class UserBookIngest(BaseModel):
+    user_id: uuid.UUID
+    book_id: uuid.UUID
+    current_page: Optional[int]
+    reading_status: Optional[str]
+    rating: Optional[float] = Field(None, ge=1, le=5)
+
+# Data to be sent to the front end when the user wants to 
+# Update their book
 class DetailedBook(BaseModel):
-    id: uuid.UUID
-    thumbnail: Optional[str]
+    book_id: uuid.UUID
     title: str
+    thumbnail: Optional[str]
+    description: Optional[str]
+    categories: Optional[List[str]] = Field()
     authors: List[str] = Field(default_factory=list)
-    current_page: int
     total_pages: Optional[int]
-    added_at: datetime
+    added_at: Optional[datetime] = None
+    rating: Optional[float] = 0
 
 class BookSearchResult(BaseModel):
     id: uuid.UUID

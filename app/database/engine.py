@@ -20,14 +20,4 @@ async_session = async_sessionmaker(
 class Base(DeclarativeBase):
     pass
 
-async def get_db():
-    """
-    FastPI Dependency: Yields a database session 
-    to a route and ensures it's closed afterward.
-    """
 
-    async with async_session() as session:
-        try:
-            yield session
-        finally:
-            await session.close()

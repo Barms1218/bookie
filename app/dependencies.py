@@ -11,8 +11,6 @@ from sqlalchemy.orm import DeclarativeBase
 from app.repositories.book_repository import BookRepository 
 from app.repositories.user_repository import UserRepository 
 from app.database import engine
-from app.database.engine import async_session
-from httpx import AsyncClient
 
 async def get_db():
     async with engine.async_session() as session:

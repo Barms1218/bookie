@@ -1,8 +1,10 @@
+from fastapi.responses import RedirectResponse
 from app.dependencies import get_google_service
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request 
 from app.schemas.book import BookSearchResult, DetailedBook
 from app.services.book_services import GoogleBooksService
 from typing import List
+import uuid
 
 router = APIRouter(prefix="/books", tags=["books"])
 
@@ -12,6 +14,7 @@ async def search_books(term: str, service: GoogleBooksService = Depends(get_goog
     return {"data": data }
 
 
-@router.post("/library/batch-add", response_model=List[DetailedBook])
-async def select_books(schemas: list[BookSearchResult]):
-    pass
+@router.post("/library/select/{book_id}", response_model=DetailedBook)
+async def select_books(book_id: uuid.UUID, service: GoogleBooksService = Depends(get_google_service)):
+    return await service.view_book(book_id=book_id)
+

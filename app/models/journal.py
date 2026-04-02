@@ -42,5 +42,5 @@ class Quote(Base):
     user: Mapped["User"] = Relationship(back_populates="quotes")
     user_book: Mapped["UserBook"] = Relationship(back_populates="quotes")
 
-    # Indexes
-    Index("ix_quotes_characters_gin", Quote.characters, postgresql_using="gin")
+# Indexes
+Index("ix_quotes_characters_gin", Quote.characters, postgresql_using="gin")

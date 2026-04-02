@@ -1,8 +1,12 @@
 import httpx
+from sqlalchemy import desc
 from app.dependencies import UnitOfWork
-from app.schemas.book import BookIngestSchema
+from app.schemas.book import BookIngestSchema, DetailedBook, UserBookIngest
 from fastapi import HTTPException
 from pydantic import ValidationError
+from app.schemas.book import BookSearchResult
+from datetime import datetime
+import uuid
 
 
 class GoogleBooksService:
@@ -42,5 +46,24 @@ class GoogleBooksService:
 
             return valid_books 
 
-    async def select_books(self, search_results: list[BookSearchResult]):
-        pass
+    async def view_book(self, book_id: uuid.UUID) -> DetailedBook:
+        async with self.uow:
+            book = await self.uow.books.get_book_with_id(id=book_id)
+
+            if not book:
+                raise HTTPException(404, "No book found with that id")
+
+
+            detailed_book = DetailedBook(
+                    book_id=book.id,
+                    title=book.title,
+                    thumbnail=book.meta_data.get("thumbnail"),
+                    description=book.meta_data.get("description"),
+                    categories=book.meta_data.get("categories"),
+                    authors=book.authors,
+                    total_pages=book.page_count
+                    )
+        return detailed_book
+
+    async def save_book(self, schema: UserBookIngest):
+        return await self.uow.books.save_user_book(schema)

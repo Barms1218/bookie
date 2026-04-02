@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, List, Optional 
 from sqlalchemy import CheckConstraint, ForeignKey, String, Integer, Float
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, String, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, Relationship
 from .base import Base
 import uuid
@@ -37,6 +37,8 @@ class UserBook(Base):
     date_completed: Mapped[Optional[datetime.datetime]]
     rating: Mapped[Float] = mapped_column(Float, default=0) 
     status: str = "to-read"
+    added_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now()) 
+
     
 
     # Relationships

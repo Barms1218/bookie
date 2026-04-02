@@ -1,11 +1,12 @@
-from re import search
 from typing import Optional, List
 from sqlalchemy import select, or_, func
 from sqlalchemy.dialects.postgresql import insert
-from app.schemas.book import BookIngestSchema, BookSearchResult
-from app.models.book import Book
+from app.schemas.book import BookIngestSchema, BookSearchResult 
+from app.models.book import Book, UserBook
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
+
+from app.schemas.user import UserIngestSchema
 
 
 class BookRepository:
@@ -64,6 +65,26 @@ class BookRepository:
         
         result = await self.db.execute(upsert_stmt)
         return result.scalar_one()
+
+    async def save_user_book(self, book_schema: UserIngestSchema):
+        uploaded_book = book_schema.model_dump()
+
+        
+        stmt = insert(UserBook).values(**uploaded_book)
+        upsert_stmt = stmt.on_conflict_do_update(
+                index_elements=['book_id', 'user_id'],
+                set_={
+                    "added_at": func.now(),
+                    "reading_status": func.coalesce(stmt.excluded.reading_status, UserBook.status),
+                    "current_page": func.coalesce(stmt.excluded.current_page, UserBook.current_page),
+                    "rating": func.coalesce(stmt.excluded.rating, UserBook.rating)
+                    }
+                ).returning(UserBook)
+
+        result = await self.db.execute(upsert_stmt)
+        row = result.scalar_one()
+        return row
+
 
     async def get_book_by_isbn(self, isbn: str) -> Optional[Book]:
         stmt = select(Book).where(Book.isbn == isbn)
