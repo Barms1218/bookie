@@ -50,19 +50,18 @@ class BookRepository:
     # Upsert function. If there's a conflict on the isbn update the title
     async def save_book_to_db(self, book_schema: BookIngestSchema):
         # Prepare the insert
-        cleaned_data = book_schema.model_dump(by_alias=True)
-        stmt = insert(Book).values(**cleaned_data)
+        data = book_schema.model_dump()
 
+        print(data)
+        stmt = insert(Book).values(**data)
         upsert_stmt = stmt.on_conflict_do_update(
                 index_elements=['isbn'],
                 set_={
                     "title": stmt.excluded.title,
-                    "authors": stmt.excluded.authors,
-                    "meta_data": stmt.excluded.meta_data,
-                    "page_count": stmt.excluded.page_count
+                    "page_count": stmt.excluded.page_count,
+                    "meta_data": stmt.excluded.meta_data
                     }
                 ).returning(Book)
-        
         result = await self.db.execute(upsert_stmt)
         return result.scalar_one()
 
@@ -74,10 +73,10 @@ class BookRepository:
         upsert_stmt = stmt.on_conflict_do_update(
                 index_elements=['book_id', 'user_id'],
                 set_={
-                    "added_at": func.now(),
-                    "reading_status": func.coalesce(stmt.excluded.reading_status, UserBook.status),
-                    "current_page": func.coalesce(stmt.excluded.current_page, UserBook.current_page),
-                    "rating": func.coalesce(stmt.excluded.rating, UserBook.rating)
+                    UserBook.added_at: func.now(),
+                    UserBook.reading_status: func.coalesce(stmt.excluded.reading_status, UserBook.reading_status),
+                    UserBook.current_page: func.coalesce(stmt.excluded.current_page, UserBook.current_page),
+                    UserBook.rating: func.coalesce(stmt.excluded.rating, UserBook.rating)
                     }
                 ).returning(UserBook)
 

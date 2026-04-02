@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from app.repositories.book_repository import BookRepository 
 from app.repositories.user_repository import UserRepository 
+from app.repositories.genre_repository import GenreRepository
 from app.database import engine
 from app.database.unit_of_work import UnitOfWork
 
@@ -28,6 +29,9 @@ def get_journal_repo(db: AsyncSession = Depends(get_db)) -> JournalRepository:
 
 def get_quote_repo(db: AsyncSession = Depends(get_db)) -> QuoteRepository:
     return QuoteRepository(db = db)
+
+def get_genre_repo(db: AsyncSession = Depends(get_db)) -> GenreRepository:
+    return GenreRepository(db = db)
 
 def get_unit_of_work(db: AsyncSession = Depends(get_db)) -> UnitOfWork:
     return UnitOfWork(db=db)

@@ -5,10 +5,8 @@ from .base import Base
 import datetime
 import uuid
 
-
 if TYPE_CHECKING:
     from .user import User
-
 class BookClub(Base):
     __tablename__ = "book_clubs"
 

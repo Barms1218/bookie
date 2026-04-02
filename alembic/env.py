@@ -29,5 +29,5 @@ async def run_migrations_online():
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()
-
+print(">>> DB URL:", settings.database_url)
 asyncio.run(run_migrations_online())

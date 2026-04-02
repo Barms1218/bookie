@@ -11,14 +11,14 @@ class BookMetadata(BaseModel):
     publisher: Optional[str] = None
 
 class BookIngestSchema(BaseModel):
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    model_config = ConfigDict(extra='ignore', populate_by_name=True)
 
     title: str 
     isbn: str
     authors: List[str]= Field(default_factory=list) # Make sure every model has its own list
     page_count: int = Field(default=0, alias="pageCount")
     
-    metadata: BookMetadata
+    meta_data: BookMetadata = Field(alias="metadata")
 
     @model_validator(mode='before')
     @classmethod

@@ -1,14 +1,17 @@
+from __future__ import annotations
 from typing import TYPE_CHECKING, List, Optional
-from sqlalchemy import DateTime, ForeignKey, String, func, Boolean 
+from sqlalchemy import DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column, Relationship
 from .base import Base
 import datetime
 import uuid
 
 if TYPE_CHECKING:
-    from .book import UserBook  
+    from .journal import Journal
+    from .user_book import UserBook
     from .book_clubs import BookClub
-    from .journal import Journal, Quote
+    from .note import Note
+    from .quote import Quote
 
 class User(Base):
     __tablename__ = "users"
@@ -26,7 +29,8 @@ class User(Base):
     # Relationships
     user_books: Mapped[List["UserBook"]] = Relationship(back_populates="user")
     journals: Mapped[List["Journal"]] = Relationship(back_populates="user")
-    clubs: Mapped[List["BookClub"]] = Relationship(secondary="club_members", back_populates="users")                                             
+    clubs: Mapped[List["BookClub"]] = Relationship(secondary="club_members", back_populates="users")                                        
+    notes: Mapped[List["Note"]] = Relationship(back_populates="user")
     quotes: Mapped[List["Quote"]] = Relationship(back_populates="user")
 
     def __repr__(self) -> str:
