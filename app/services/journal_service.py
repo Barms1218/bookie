@@ -1,5 +1,7 @@
 import httpx
-from app.dependencies import UnitOfWork
+
+from app.database.unit_of_work import UnitOfWork
+
 from app.schemas.journal import JournalIngestSchema, JournalPublic
 from fastapi import HTTPException
 

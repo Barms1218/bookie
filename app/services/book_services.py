@@ -1,11 +1,11 @@
 import httpx
-from sqlalchemy import desc
-from app.dependencies import UnitOfWork
+from app.database.unit_of_work import UnitOfWork
 from app.schemas.book import BookIngestSchema, DetailedBook, UserBookIngest
 from fastapi import HTTPException
 from pydantic import ValidationError
 from app.schemas.book import BookSearchResult
 from datetime import datetime
+from typing import Optional
 import uuid
 
 
@@ -16,7 +16,7 @@ class GoogleBooksService:
         self.client = client
         self.uow = uow 
 
-    async def get_book_with_term(self, term: str):
+    async def get_book_with_term(self, term: str) -> Optional[list[BookSearchResult]]:
             db_books = await self.uow.books.search_books_local(term) 
            
             if db_books:

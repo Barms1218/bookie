@@ -1,6 +1,6 @@
 from datetime import datetime
-from pydantic import BaseModel, Field, Integer, field_validator, model_validator, String
-from typing import Optional, Dict, List
+from pydantic import BaseModel, Field,field_validator 
+from typing import Optional, List
 import uuid
 
 class JournalIngestSchema(BaseModel):

@@ -1,4 +1,5 @@
-from pydantic import BaseModel, field_validator, EmailStr, SecretStr, Optional
+from pydantic import BaseModel, field_validator, EmailStr, SecretStr 
+from typing import Optional
 import string
 import datetime
 import uuid
@@ -30,12 +31,8 @@ class UserIngestSchema(BaseModel):
         return p
 
 
-class User:
-    def __init__(self, id: uuid.UUID, name: str, 
-        email: str, date_joined: datetime.datetime):
-        self.name = name
-        self.email = email
-        self.id = id,
-        self.date_joined = date_joined
-        
+class UserProfile(BaseModel):
+    id: uuid.UUID
+    name: str
+    email: str
 

@@ -1,7 +1,7 @@
 from typing import Optional, List
 from sqlalchemy import select, or_, func
 from sqlalchemy.dialects.postgresql import insert
-from app.schemas.book import BookIngestSchema, BookSearchResult 
+from app.schemas.book import BookIngestSchema, BookSearchResult, UserBookIngest 
 from app.models.book import Book, UserBook
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
@@ -66,7 +66,7 @@ class BookRepository:
         result = await self.db.execute(upsert_stmt)
         return result.scalar_one()
 
-    async def save_user_book(self, book_schema: UserIngestSchema):
+    async def save_user_book(self, book_schema: UserBookIngest):
         uploaded_book = book_schema.model_dump()
 
         

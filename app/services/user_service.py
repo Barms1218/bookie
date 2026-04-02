@@ -1,7 +1,7 @@
 import httpx
 from fastapi import HTTPException
-from app.dependencies import UnitOfWork
-from app.schemas.user import UserIngestSchema, User 
+from app.database.unit_of_work import UnitOfWork
+from app.schemas.user import UserIngestSchema, UserProfile 
 from argon2 import PasswordHasher
 
 class UserService:
@@ -9,7 +9,7 @@ class UserService:
         self.client = client
         self.uow = uow 
 
-    async def register_user(self, new_user: UserIngestSchema) -> User:
+    async def register_user(self, new_user: UserIngestSchema) -> UserProfile:
         # If the email isn't already in the database
         if self.uow.users.get_by_email(new_user.email):
             raise HTTPException(status_code=400, detail="Email already registered")
@@ -22,7 +22,7 @@ class UserService:
             user_data["password"] = hashed_password
         
         inserted_user = await self.uow.users.create_user(user_data)
-        created_user = User(inserted_user.id, str(inserted_user.email), inserted_user.name, inserted_user.date_joined) 
+        created_user = UserProfile(id=inserted_user.id, name=inserted_user.name, email=inserted_user.email) 
 
         return created_user 
 

@@ -11,6 +11,7 @@ from sqlalchemy.orm import DeclarativeBase
 from app.repositories.book_repository import BookRepository 
 from app.repositories.user_repository import UserRepository 
 from app.database import engine
+from app.database.unit_of_work import UnitOfWork
 
 async def get_db():
     async with engine.async_session() as session:
@@ -50,24 +51,4 @@ def get_journal_service(request: Request,
                         ) -> JournalService:
     return JournalService(client=request.app.state.http_client, uow=uow)
 
-class UnitOfWork:
-    def __init__(self, db: AsyncSession):
-        self.db = db
-        self.books = BookRepository(self.db) 
-        self.users = UserRepository(self.db) 
-        self.quotes = QuoteRepository(self.db) 
-        self.journals = JournalRepository(self.db) 
-
-    async def commit(self):
-        await self.db.commit()
-
-    async def rollback(self):
-        await self.db.rollback()
-
-    async def __aenter__(self):
-        return self
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if exc_type:
-            await self.rollback()
 
