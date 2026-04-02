@@ -17,34 +17,37 @@ class GoogleBooksService:
         self.uow = uow 
 
     async def get_book_with_term(self, term: str) -> Optional[list[BookSearchResult]]:
-            db_books = await self.uow.books.search_books_local(term) 
-           
-            if db_books:
-                return db_books
-            params = {"q": term, "key": self.api_key}
-            response = await self.client.get(self.base_url, params=params)
- 
-            if not response.is_success: 
-                raise HTTPException(status_code=502, detail="External API Failure")
+        valid_books = []
+        async with self.uow:
+                db_books = await self.uow.books.search_books_local(term) 
+               
+                if db_books:
+                    return db_books
+                params = {"q": term, "key": self.api_key}
+                response = await self.client.get(self.base_url, params=params)
+     
+                if not response.is_success: 
+                    raise HTTPException(status_code=502, detail="External API Failure")
 
-            raw_data = response.json()
+                raw_data = response.json()
 
-            # Google returns everything in one big items dictionary
-            items = raw_data.get("items", [])
+                # Google returns everything in one big items dictionary
+                items = raw_data.get("items", [])
 
-            valid_books = []
-            for item in items:
-                volume_info = item.get("volumeInfo", {})
-                try:
-                    book = BookIngestSchema(**volume_info)
-                    saved_book = await self.uow.books.save_book_to_db(book)
-                    valid_books.append(saved_book)
-                except ValidationError as e:
-                    # If a book has bad data, ignore it and move on
-                    print(f"Skipping book: {e}")
-                    continue
+                for item in items:
+                    volume_info = item.get("volumeInfo", {})
+                    try:
+                        book = BookIngestSchema(**volume_info)
+                        saved_book = await self.uow.books.save_book_to_db(book)
+                        valid_books.append(saved_book)
+                    except ValidationError as e:
+                        # If a book has bad data, ignore it and move on
+                        print(f"Skipping book: {e}")
+                        continue
 
-            return valid_books 
+                await self.uow.commit()
+
+        return valid_books 
 
     async def view_book(self, book_id: uuid.UUID) -> DetailedBook:
         async with self.uow:

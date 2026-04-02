@@ -8,8 +8,7 @@ from app.dependencies import get_user_service
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.post("/register", response_model=UserProfile, status_code=201)
+@router.post("/register", status_code=201)
 async def register(new_user: UserIngestSchema, service: UserService = Depends(get_user_service)):
-    data = service.register_user(new_user=new_user) 
-    return {"data": data }
+    return await service.register_user(new_user=new_user) 
 

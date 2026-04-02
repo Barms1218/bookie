@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator, EmailStr, SecretStr 
+from pydantic import BaseModel, field_validator, EmailStr, SecretStr, ConfigDict 
 from typing import Optional
 import string
 import datetime
@@ -22,7 +22,7 @@ class UserIngestSchema(BaseModel):
     @classmethod
     def password_strength(cls, p: SecretStr) -> SecretStr: #If the password is good, the validator needs to send it on
         raw: str = p.get_secret_value()
-        if len(raw) < 8:
+        if p and len(raw) < 8:
             raise ValueError("Password does not meet length requirements(8 or more)") 
         
         contains_special = any(char in set(string.punctuation) for char in raw)
@@ -32,6 +32,7 @@ class UserIngestSchema(BaseModel):
 
 
 class UserProfile(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     name: str
     email: str
