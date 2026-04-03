@@ -1,16 +1,16 @@
 from sqlalchemy import select, or_, func
 from sqlalchemy.dialects.postgresql import insert
-from app.models.journal import Journal
+from app.database.models import Journal
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.journal import JournalPublic
+from app.schemas.journal import JournalIngestSchema, JournalPublic
 
 class JournalRepository:
     def __init__(self, db: AsyncSession):
-        self.db = db
+        self.db: AsyncSession = db
 
-    async def create_journal(self, schema: dict, book_title: str) -> JournalPublic:
-        stmt = insert(Journal).values(**schema).returning(Journal)
+    async def create_journal(self, schema: JournalIngestSchema, book_title: str) -> JournalPublic:
+        stmt = insert(Journal).values(schema.model_dump()).returning(Journal)
 
         result = await self.db.execute(stmt)
         new_journal: JournalPublic

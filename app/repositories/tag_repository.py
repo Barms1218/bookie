@@ -1,16 +1,16 @@
+from operator import index
 from sqlalchemy import select, or_, func
 from sqlalchemy.dialects.postgresql import insert
-from app.models.tag import Tag
-from app.schemas.tags import PublicTag, TagIngestSchema
-from app.models.associations import BookTag, NoteTag
+from app.database.models import Tag, NoteTag, BookTag
+from app.schemas.tags import PublicTag, TagAssignment, TagIngestSchema, TagInternal
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 
 class TagRepository:
     def __init__(self, db: AsyncSession):
-        self.db = db
+        self.db: AsyncSession = db
 
-    async def create_tags(self, schemas: list[TagIngestSchema], book_id: uuid.UUID) -> list[PublicTag]:
+    async def create_tags(self, schemas: list[TagIngestSchema]) -> list[PublicTag]:
         tag_data = [schema.model_dump() for schema in schemas]
 
         stmt = insert(Tag)
@@ -24,28 +24,28 @@ class TagRepository:
                 ).returning(Tag)
         result = await self.db.execute(upsert_stmt, tag_data)
         
-        tag_results = result.scalars().all()
-        tags: list[PublicTag] = [
-                PublicTag(id=t.id, book_id=book_id, name=t.name)
+        tag_results = list(result.scalars().all())
+
+        public_tags: list[PublicTag] = [
+                PublicTag(id=t.id, name=t.name, rating_value=t.rating_value,meta_data=t.meta_data)
                 for t in tag_results
                 ]
-        return tags
+        return public_tags
+            
 
-    async def create_book_tag(self, tag: TagIngestSchema) -> BookTag:
-        stmt = (
-                insert(BookTag)
-                .values(
-                    user_bok_id=tag.book_id,
-                    tag_id=tag.id,
-                    rating_value=tag.rating
-                    )
-                .on_conflict_do_update(
-                    index_elements=['user_book_id', 'tag_id'],
-                    set_={BookTag.rating_value: tag.rating }
-                    )
-                .returning(BookTag)
+    async def create_book_tag(self, tag: PublicTag, book_id: uuid.UUID) -> BookTag:
+        stmt = insert(BookTag).values(
+                user_book_id=book_id,
+                tag_id=tag.id,
+                rating=tag.rating_value
                 )
-        result = await self.db.execute(stmt)
 
+        upsert_stmt = stmt.on_conflict_do_update(
+                index_elements=['tag_id', 'book_id'],
+                set_={
+                    BookTag.rating_value: stmt.excluded.rating
+                    }
+                ).returning(BookTag)
+        result = await self.db.execute(upsert_stmt)
         return result.scalar_one()
 

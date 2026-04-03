@@ -1,8 +1,8 @@
-"""initial schema
+"""Initial schema
 
-Revision ID: cfcec1348bc9
+Revision ID: 9eac10da8425
 Revises: 
-Create Date: 2026-04-02 13:35:32.858123
+Create Date: 2026-04-03 06:08:12.704105
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'cfcec1348bc9'
+revision: str = '9eac10da8425'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,7 +25,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('isbn', sa.String(length=20), nullable=True),
     sa.Column('title', sa.String(length=255), nullable=False),
-    sa.Column('authors', postgresql.ARRAY(sa.String()), nullable=False),
+    sa.Column('authors', sa.ARRAY(sa.String()), nullable=False),
     sa.Column('page_count', sa.Integer(), nullable=True),
     sa.Column('meta_data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.PrimaryKeyConstraint('id')
@@ -35,8 +35,8 @@ def upgrade() -> None:
     op.create_table('tags',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('name', sa.String(length=50), nullable=False),
-    sa.Column('genre', sa.String(), nullable=False),
-    sa.Column('rating', sa.Float(), nullable=True),
+    sa.Column('genre', sa.String(length=20), nullable=False),
+    sa.Column('rating_value', sa.Integer(), nullable=True),
     sa.Column('meta_data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name')
@@ -70,9 +70,9 @@ def upgrade() -> None:
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('book_id', sa.Uuid(), nullable=False),
     sa.Column('current_page', sa.Integer(), nullable=False),
-    sa.Column('date_completed', sa.DateTime(), nullable=True),
-    sa.Column('rating', sa.Float(), nullable=False),
-    sa.Column('spice_rating', sa.Float(), nullable=True),
+    sa.Column('date_completed', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('rating', sa.Integer(), nullable=True),
+    sa.Column('spice_rating', sa.Integer(), nullable=True),
     sa.Column('reading_status', sa.String(length=15), nullable=False),
     sa.Column('added_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.CheckConstraint('rating >= 0 AND rating <= 5', name='rating_between_0_and_5'),
@@ -84,7 +84,7 @@ def upgrade() -> None:
     op.create_table('book_tags',
     sa.Column('user_book_id', sa.Uuid(), nullable=False),
     sa.Column('tag_id', sa.Uuid(), nullable=False),
-    sa.Column('rating', sa.Float(), nullable=True),
+    sa.Column('rating_value', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['tag_id'], ['tags.id'], ),
     sa.ForeignKeyConstraint(['user_book_id'], ['user_books.id'], ),
     sa.PrimaryKeyConstraint('user_book_id', 'tag_id')
@@ -138,6 +138,7 @@ def upgrade() -> None:
     op.create_table('note_tags',
     sa.Column('note_id', sa.Uuid(), nullable=False),
     sa.Column('tag_id', sa.Uuid(), nullable=False),
+    sa.Column('rating_value', sa.Float(), nullable=True),
     sa.ForeignKeyConstraint(['note_id'], ['notes.id'], ),
     sa.ForeignKeyConstraint(['tag_id'], ['tags.id'], ),
     sa.PrimaryKeyConstraint('note_id', 'tag_id')
