@@ -14,7 +14,7 @@ async def add_booktag_endpoint(
     return await service.create_book_tags(schemas=schemas)
 
 
-@router.delete(path="/tags/{book_tag_id}", status_code=200)
+@router.delete(path="/delete/{book_tag_id}", status_code=200)
 async def remote_booktag_endpoint(
                 book_tag_id: uuid.UUID,
                 service: TagService = Depends(get_tag_service)):
