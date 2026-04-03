@@ -1,15 +1,15 @@
+from typing import ClassVar
 from pydantic import BaseModel, field_validator, EmailStr, SecretStr, ConfigDict 
-from typing import Optional
 import string
-import datetime
 import uuid
 
 class UserIngestSchema(BaseModel):
     name: str  
     email: EmailStr
-    password: Optional[SecretStr] = None
-    google_id: Optional[str] = None
-    apple_id: Optional[str] = None
+    password: SecretStr | None = None
+    password_hash: str | None = None
+    google_id: str | None = None
+    apple_id: str | None = None
 
     @field_validator("name")
     @classmethod
@@ -32,7 +32,7 @@ class UserIngestSchema(BaseModel):
 
 
 class UserProfile(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
     id: uuid.UUID
     name: str
     email: str

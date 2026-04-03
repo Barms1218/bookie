@@ -1,20 +1,17 @@
-from typing import Optional, List
 from sqlalchemy import select, or_, func
 from sqlalchemy.dialects.postgresql import insert
 from app.schemas.book import BookIngestSchema, BookSearchResult, UserBookIngest 
-from app.models.book import Book
-from app.models.user_book import UserBook
+from app.database.models import Book, UserBook
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 
-from app.schemas.user import UserIngestSchema
 
 
 class BookRepository:
     def __init__(self, db: AsyncSession):
-        self.db = db
+        self.db: AsyncSession = db
 
-    async def search_books_local(self, term: str) -> List[BookSearchResult]:
+    async def search_books_local(self, term: str) -> list[BookSearchResult]:
         search_term = f"%{term}%"
         stmt = (
                 select(Book)
@@ -82,21 +79,22 @@ class BookRepository:
                 ).returning(UserBook)
 
         result = await self.db.execute(upsert_stmt)
+        await self.db.commit()
         row = result.scalar_one()
         return row
 
 
-    async def get_book_by_isbn(self, isbn: str) -> Optional[Book]:
+    async def get_book_by_isbn(self, isbn: str) -> Book | None:
         stmt = select(Book).where(Book.isbn == isbn)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_book_with_id(self, id: uuid.UUID) -> Optional[Book]:
+    async def get_book_with_id(self, id: uuid.UUID) -> Book | None:
         stmt = select(Book).where(Book.id == id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_books(self) -> List[Book]:
+    async def get_books(self) -> list[Book]:
         stmt = (
                 select(Book)
                 ).limit(20)

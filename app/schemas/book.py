@@ -1,30 +1,34 @@
+from typing import ClassVar, TypedDict, Any
 from pydantic import BaseModel, Field, ConfigDict, model_validator
-from typing import Optional, List, Dict, Any
 from datetime import datetime
 import uuid
 
+class IndustryIdentifier(TypedDict):
+    type: str
+    identifier: str
+
 class BookMetadata(BaseModel):
-    categories: List[str] = Field(default_factory=list)
-    description: Optional[str] = None
-    image_links: Optional[Dict[str, str]] = Field(None, alias="imageLinks")
-    identifiers: List[Dict[str, str]] = Field(default_factory=list, alias="industryIdentifiers")
-    publisher: Optional[str] = None
+    categories: list[str] = Field(default_factory=list)
+    description: str | None = None
+    image_links: dict[str, str] | None = Field(default_factory=dict, alias="imageLinks")
+    identifiers: list[dict[str, str]] = Field(default_factory=list, alias="industryIdentifiers")
+    publisher: str | None = None
 
 class BookIngestSchema(BaseModel):
-    model_config = ConfigDict(extra='ignore', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='ignore', populate_by_name=True)
 
     title: str 
     isbn: str
-    authors: List[str]= Field(default_factory=list) # Make sure every model has its own list
+    authors: list[str]= Field(default_factory=list) # Make sure every model has its own list
     page_count: int = Field(default=0, alias="pageCount")
     
     meta_data: BookMetadata = Field(alias="metadata")
 
     @model_validator(mode='before')
     @classmethod
-    def wrap_metadata(cls, data: dict):
+    def wrap_metadata(cls, data: dict[str, Any]):
         # Get the identifiers list
-       identifiers = data.get("industryIdentifiers", [])
+       identifiers: list[IndustryIdentifier] = data.get("industryIdentifiers", [])
        found_isbn = "UNKNOWN"
 
         # Loop through the dictionaries and prioritize ISBN_13
@@ -47,26 +51,26 @@ class BookIngestSchema(BaseModel):
 class UserBookIngest(BaseModel):
     user_id: uuid.UUID
     book_id: uuid.UUID
-    current_page: Optional[int]
-    reading_status: Optional[str]
-    rating: Optional[float] = Field(None, ge=1, le=5)
+    current_page: int | None 
+    reading_status: str | None 
+    rating: int | None = Field(None, ge=1, le=5)
 
 # Data to be sent to the front end when the user wants to 
 # Update their book
 class DetailedBook(BaseModel):
     book_id: uuid.UUID
     title: str
-    thumbnail: Optional[str]
-    description: Optional[str]
-    categories: Optional[List[str]] = Field()
-    authors: List[str] = Field(default_factory=list)
-    total_pages: Optional[int]
-    added_at: Optional[datetime] = None
-    rating: Optional[float] = 0
+    thumbnail: str | None 
+    description: str | None 
+    categories: list[str] | None = Field(default_factory=list)
+    authors: list[str] = Field(default_factory=list)
+    total_pages: int | None 
+    added_at: datetime | None = None
+    rating: int | None = 0
 
 class BookSearchResult(BaseModel):
     id: uuid.UUID
-    isbn: Optional[str]
+    isbn: str | None 
     title: str
-    authors: List[str] = Field(default_factory=list)
+    authors: list[str] = Field(default_factory=list)
 

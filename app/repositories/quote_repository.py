@@ -4,4 +4,4 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 class QuoteRepository:
     def __init__(self, db: AsyncSession):
-        self.db = db
+        self.db: AsyncSession = db
