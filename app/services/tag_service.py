@@ -1,3 +1,4 @@
+import uuid
 import httpx
 from app.database.unit_of_work import UnitOfWork
 
@@ -28,3 +29,5 @@ class TagService:
                 await self.uow.rollback()
                 raise
 
+    async def remove_book_tag(self, book_tag_id: uuid.UUID):
+        return await self.uow.tags.remove_book_tag(book_tag_id=book_tag_id)

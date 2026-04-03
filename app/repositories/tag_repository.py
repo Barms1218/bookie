@@ -1,9 +1,9 @@
-from sqlalchemy import select, or_, func
+from typing import Any, cast
+from sqlalchemy import CursorResult, delete, select, or_, func
 from sqlalchemy.dialects.postgresql import insert
 from app.database.models import Tag, NoteTag, BookTag
 from app.schemas.tags import PublicTag, BookTagIngestSchema 
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Mapping
 import uuid
 
 class TagRepository:
@@ -65,3 +65,11 @@ class TagRepository:
         ]
 
         return public_tags
+
+    async def remove_book_tag(self, book_tag_id: uuid.UUID) -> bool:
+        stmt = delete(BookTag).where(BookTag.id == book_tag_id)
+
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+        return cast(CursorResult[Any], result).rowcount > 0
+
