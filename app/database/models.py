@@ -170,6 +170,9 @@ class BookTag(Base):
     tag_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tags.id"), primary_key=True)
     rating_value: Mapped[int] = mapped_column(Integer)
 
+    # Holds color, border radius, etc.
+    meta_data: Mapped[dict[str, Any]] = mapped_column(JSONB)
+
     # Relationships
     user_books: Mapped["UserBook"] = Relationship(back_populates="book_tags")
     tag: Mapped["Tag"] = Relationship(back_populates="book_links")
@@ -180,4 +183,10 @@ class NoteTag(Base):
     note_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("notes.id"), primary_key=True)
     tag_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tags.id"), primary_key=True)
     rating_value: Mapped[float | None] = mapped_column(Float)
+
+    meta_data: Mapped[dict[str, Any]] = mapped_column(JSONB)
+
+    # Relationships
+    user_books: Mapped["UserBook"] = Relationship(back_populates="book_tags")
+    tag: Mapped["Tag"] = Relationship(back_populates="book_links")
 
