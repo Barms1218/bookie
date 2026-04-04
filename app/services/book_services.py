@@ -5,18 +5,17 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from app.schemas.book import BookSearchResult
 from datetime import datetime
-from typing import Optional
 import uuid
 
 
 class GoogleBooksService:
     def __init__(self, api_key: str, client: httpx.AsyncClient, uow: UnitOfWork):
-        self.api_key = api_key
-        self.base_url = "https://www.googleapis.com/books/v1/volumes"
-        self.client = client
-        self.uow = uow 
+        self.api_key: str = api_key
+        self.base_url: str = "https://www.googleapis.com/books/v1/volumes"
+        self.client: httpx.AsyncClient = client
+        self.uow: UnitOfWork = uow 
 
-    async def get_book_with_term(self, term: str) -> Optional[list[BookSearchResult]]:
+    async def get_book_with_term(self, term: str) -> list[BookSearchResult] | None:
         valid_books = []
         async with self.uow:
                 db_books = await self.uow.books.search_books_local(term) 

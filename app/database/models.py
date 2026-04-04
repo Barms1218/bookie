@@ -57,7 +57,7 @@ class UserBook(Base):
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
 
     current_page: Mapped[int] = mapped_column(Integer, default=0) 
-    date_completed: Mapped[datetime | None] = mapped_column(
+    deleted_at: Mapped[datetime | None] = mapped_column(
             DateTime(timezone=True), default=None) 
     rating: Mapped[int | None] = mapped_column(default=0) 
     reading_status: Mapped[str] = mapped_column(String(15), default="to-read")
@@ -106,7 +106,6 @@ class Note(Base):
     # This is where your Tropes (Enemies-to-Lovers) live!
     note_type: Mapped[str] = mapped_column(String, default="general") 
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    tags: Mapped[list["Tag"]] = Relationship(secondary="note_tags",back_populates="notes")
 
     # Relationships
     user: Mapped["User"] = Relationship(back_populates="notes")

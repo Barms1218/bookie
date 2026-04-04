@@ -10,7 +10,8 @@ class IndustryIdentifier(TypedDict):
 class BookMetadata(BaseModel):
     categories: list[str] = Field(default_factory=list)
     description: str | None = None
-    image_links: dict[str, str] | None = Field(default_factory=dict, alias="imageLinks")
+    small_thumbnail: str | None = None
+    thumbnail: str | None = None
     identifiers: list[dict[str, str]] = Field(default_factory=list, alias="industryIdentifiers")
     publisher: str | None = None
 
@@ -18,7 +19,7 @@ class BookIngestSchema(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra='ignore', populate_by_name=True)
 
     title: str 
-    isbn: str
+    isbn: str | None = None
     authors: list[str]= Field(default_factory=list) # Make sure every model has its own list
     page_count: int = Field(default=0, alias="pageCount")
     
@@ -27,12 +28,12 @@ class BookIngestSchema(BaseModel):
     @model_validator(mode='before')
     @classmethod
     def wrap_metadata(cls, data: dict[str, Any]):
-        # Get the identifiers list
+       # Get the identifiers list
        identifiers: list[IndustryIdentifier] = data.get("industryIdentifiers", [])
        found_isbn = "UNKNOWN"
 
-        # Loop through the dictionaries and prioritize ISBN_13
-        # take ISBN_10 as a backup
+       # Loop through the dictionaries and prioritize ISBN_13
+       # take ISBN_10 as a backup
        for isbn_dict in identifiers:
            id_type = isbn_dict.get("type") # Get the key of the dictionary containing the type and identifier
            if id_type == "ISBN_13":
@@ -41,10 +42,22 @@ class BookIngestSchema(BaseModel):
            elif id_type == "ISBN_10":
                found_isbn = isbn_dict.get("identifier")
 
-      
-       data["isbn"] = found_isbn
+       #2. Handle Image Links safely
+       # Note: Google Books usually provides a dict called 'imageLinks', 
+       # not a list called 'image_links'. Adjust based on your actual source!
+       image_links = data.get("imageLinks", {}) 
+        
+       # We put these inside a new dict specifically for the Metadata model
+       metadata_payload = {
+            "categories": data.get("categories", []),
+            "description": data.get("description"),
+            "publisher": data.get("publisher"),
+            "small_thumbnail": image_links.get("smallThumbnail"),
+            "thumbnail": image_links.get("thumbnail")
+       }
 
-       data["metadata"] = data 
+       # 3. Assign the new dict to the metadata key
+       data["metadata"] = metadata_payload
 
        return data
 
@@ -70,7 +83,7 @@ class DetailedBook(BaseModel):
 
 class BookSearchResult(BaseModel):
     id: uuid.UUID
-    isbn: str | None 
+    thumbnail: str | None = None
     title: str
     authors: list[str] = Field(default_factory=list)
 
