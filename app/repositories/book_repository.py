@@ -118,12 +118,11 @@ class BookRepository:
             for row in rows
         ]
 
-    async def get_user_book(self, book_id: uuid.UUID, user_id: uuid.UUID) -> DetailedBook:
+    async def get_user_book(self, user_book_id: uuid.UUID) -> DetailedBook:
         stmt = (
             select(UserBook, Book)
             .join(Book, UserBook.book_id == Book.id)
-            .where(UserBook.book_id == book_id)
-            .where(UserBook.user_id == user_id) # Security: Ensure this book belongs to THIS user
+            .where(UserBook.id == user_book_id)
             )
 
         result = await self.db.execute(stmt)
@@ -137,7 +136,7 @@ class BookRepository:
                 categories=book.meta_data["categories"],
                 authors=book.authors,
                 total_pages=book.page_count,
-                rating=user_book.rating_value
+                rating=user_book.rating
                 )
 
 

@@ -49,22 +49,26 @@ class GoogleBooksService:
         return valid_books 
 
     async def view_book(self, book_id: uuid.UUID) -> DetailedBook:
-        async with self.uow:
-            book = await self.uow.books.get_book_with_id(id=book_id)
+        book = await self.uow.books.get_book_with_id(id=book_id)
 
-            if not book:
-                raise HTTPException(404, "No book found with that id")
+        if not book:
+            raise HTTPException(404, "No book found with that id")
 
 
-            detailed_book = DetailedBook(
-                    book_id=book.id,
-                    title=book.title,
-                    thumbnail=book.meta_data.get("thumbnail"),
-                    description=book.meta_data.get("description"),
-                    categories=book.meta_data.get("categories"),
-                    authors=book.authors,
-                    total_pages=book.page_count
-                    )
+        detailed_book = DetailedBook(
+                book_id=book.id,
+                title=book.title,
+                thumbnail=book.meta_data.get("thumbnail"),
+                description=book.meta_data.get("description"),
+                categories=book.meta_data.get("categories"),
+                authors=book.authors,
+                total_pages=book.page_count
+                )
+        return detailed_book
+
+    async def view_book_dashboard(self,user_book_id: uuid.UUID) -> DetailedBook:
+
+        detailed_book = await self.uow.books.get_user_book(user_book_id=user_book_id)
         return detailed_book
 
     async def save_book(self, schema: UserBookIngest):
