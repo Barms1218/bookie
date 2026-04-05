@@ -1,8 +1,9 @@
 from typing import Any, cast
 from sqlalchemy import CursorResult, delete, select, or_, func
 from sqlalchemy.dialects.postgresql import insert
-from app.database.models import Tag, NoteTag, BookTag
-from app.schemas.tags import PublicTag, BookTagIngestSchema 
+from app.database.models import Tag, EntryTag, BookTag
+from app.schemas.entry_schemas import TagIngestSchema
+from app.schemas.tags import EntryTagIngestSchema, PublicTag 
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 
@@ -12,18 +13,12 @@ class TagRepository:
 
     async def create_tags(
             self, 
-            schemas: list[BookTagIngestSchema]) -> list[Tag]:
+            schemas: list[TagIngestSchema]) -> list[Tag]:
         tag_data = [schema.model_dump() for schema in schemas]
 
         stmt = insert(Tag)
 
-        upsert_stmt = stmt.on_conflict_do_update(
-                index_elements=['name'],
-                set_={
-                    Tag.genre: stmt.excluded.genre,
-                    Tag.meta_data: stmt.excluded.meta_data
-                    }
-                ).returning(Tag)
+        upsert_stmt = stmt.on_conflict_do_nothing(index_elements=['name'])
         result = await self.db.execute(upsert_stmt, tag_data)
         
         return list(result.scalars().all())
@@ -36,8 +31,6 @@ class TagRepository:
                 {
                     "user_book_id": book_id,
                     "tag_id": tag.id,
-                    "rating_value": tag.rating_value,
-                    "meta_data": tag.meta_data
                     }
                 for tag in tags
                 ]
@@ -59,17 +52,35 @@ class TagRepository:
                     "id": row.id,
                     "name": tag_names[row.tag_id],
                     "rating_value": row.rating_value,
-                    "meta_data": row.meta_data
                     })
                 for row in rows
         ]
 
         return public_tags
 
-    async def remove_book_tag(self, book_tag_id: uuid.UUID) -> bool:
-        stmt = delete(BookTag).where(BookTag.id == book_tag_id)
+    async def create_entry_tag(self, schemas: list[EntryTagIngestSchema]):
+         payload = [
+                 {
+                     "note_id": tag.entry_id,
+                     "tag_id": tag.tag_id,
+                     "name": tag.name,
+                     }
+                 for tag in schemas
+                 ]
 
-        result = await self.db.execute(stmt)
-        await self.db.commit()
-        return cast(CursorResult[Any], result).rowcount > 0
+         stmt = insert(EntryTag).values(payload)
+
+         upsert_stmt = stmt.on_conflict_do_nothing(
+                 index_elements=['note_id', 'tag_id']
+                 ).returning(EntryTag)
+
+         _ = await self.db.execute(upsert_stmt)
+
+
+    async def remove_book_tag(self, book_tag_id: uuid.UUID) -> bool:
+            stmt = delete(BookTag).where(BookTag.id == book_tag_id)
+
+            result = await self.db.execute(stmt)
+            await self.db.commit()
+            return cast(CursorResult[Any], result).rowcount > 0
 

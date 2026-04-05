@@ -1,6 +1,6 @@
 from sqlalchemy import select, or_, func, update
 from sqlalchemy.dialects.postgresql import insert
-from app.schemas.book import BookIngestSchema, BookSearchResult, DetailedBook, UserBookIngest 
+from app.schemas.book import BookIngestSchema, BookSearchResult, DetailedBook, UserBookIngest, UserBookUpdateSchema 
 from app.database.models import Book, UserBook
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
@@ -70,7 +70,6 @@ class BookRepository:
     async def save_user_book(self, book_schema: UserBookIngest):
         uploaded_book = book_schema.model_dump()
 
-        
         stmt = insert(UserBook).values(**uploaded_book)
         upsert_stmt = stmt.on_conflict_do_update(
                 index_elements=['book_id', 'user_id'],
@@ -118,6 +117,7 @@ class BookRepository:
             for row in rows
         ]
 
+    # Need to accept a schema to update the book, probably just a UserBookUpdateSchema
     async def get_user_book(self, user_book_id: uuid.UUID) -> DetailedBook:
         stmt = (
             select(UserBook, Book)
@@ -138,7 +138,6 @@ class BookRepository:
                 total_pages=book.page_count,
                 rating=user_book.rating
                 )
-
 
     async def get_book_by_isbn(self, isbn: str) -> Book | None:
         stmt = select(Book).where(Book.isbn == isbn)

@@ -28,11 +28,8 @@ class User(Base):
 
     # Relationships
     user_books: Mapped[list["UserBook"] | None] = Relationship(back_populates="user")
-    journals: Mapped[list["Journal"] | None] = Relationship(back_populates="user")
     clubs: Mapped[list["BookClub"] | None] = Relationship(
             secondary="club_members", back_populates="users")                                        
-    notes: Mapped[list["Note"] | None] = Relationship(back_populates="user")
-    quotes: Mapped[list["Quote"] | None] = Relationship(back_populates="user")
 
 
 
@@ -40,7 +37,7 @@ class Book(Base):
     __tablename__: str = "books"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    isbn: Mapped[str | None] = mapped_column(String(20), index=True, unique=True)
+    isbn: Mapped[str | None] = mapped_column(String(13), index=True, unique=True)
     title: Mapped[str] = mapped_column(String(255), index=True)
     authors: Mapped[list[str]] = mapped_column(ARRAY(String)) 
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -48,7 +45,6 @@ class Book(Base):
 
 class UserBook(Base):
     __tablename__: str = "user_books"
-
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
 
@@ -61,13 +57,10 @@ class UserBook(Base):
             DateTime(timezone=True), default=None) 
     rating: Mapped[int | None] = mapped_column(default=0) 
     reading_status: Mapped[str] = mapped_column(String(15), default="to-read")
-    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now()) 
 
     # Relationships
     user: Mapped["User"] = Relationship(back_populates="user_books")
-    journals: Mapped[list["Journal"] | None] = Relationship(back_populates="user_book")
-    quotes: Mapped[list["Quote"] | None] = Relationship(back_populates="user_book")
-    notes: Mapped[list["Note"] | None] = Relationship(back_populates="user_book")
+    entries: Mapped[list["Entry"] | None] = Relationship(back_populates="user_book")
     book_tags: Mapped[list["BookTag"]] = Relationship(back_populates="user_books")
     tags: AssociationProxy[Type] = association_proxy("book_tags", "tags")
 
@@ -76,74 +69,32 @@ class UserBook(Base):
             CheckConstraint('rating >= 0 AND rating <= 5', name="rating_between_0_and_5"),
             )
 
-class Journal(Base):
-    __tablename__: str = "journals"
+
+class Entry(Base):
+    __tablename__: str = "entries"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    user_book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_books.id")) #journals belong to a book
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id")) # And a user
-    content: Mapped[str] = mapped_column(String(2000)) #Limit content to 500 characters
-    date_made: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now()) 
-    is_private: Mapped[Boolean] = mapped_column(Boolean, default=True)
-    reading_progress: Mapped[float] = mapped_column(Float, default=0)
-    vibe: Mapped[str | None] = mapped_column(String, nullable=True)
-
-    # Relationships
-    user: Mapped["User"] = Relationship(back_populates="journals")
-    user_book: Mapped["UserBook"] = Relationship(back_populates="journals")
-
-
-class Note(Base):
-    __tablename__: str = "notes"
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-
-    # Foreign Keys
     user_book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_books.id"))
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id")) 
-    
+
     content: Mapped[str] = mapped_column(Text)
     page_number: Mapped[int | None] = mapped_column(Integer)
-    # This is where your Tropes (Enemies-to-Lovers) live!
-    note_type: Mapped[str] = mapped_column(String, default="general") 
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_on: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    updated_on: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    is_private: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    # Relationships
-    user: Mapped["User"] = Relationship(back_populates="notes")
-    note_tags: Mapped[list["NoteTag"]] = Relationship(back_populates="notes")
-    user_book: Mapped["UserBook"] = Relationship(back_populates="notes")
-    tags: AssociationProxy[Type] = association_proxy("note_tags", "tags")
-
-class Quote(Base):
-    __tablename__: str = "quotes"
-
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    user_book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_books.id")) #journals belong to a book
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id")) 
-    characters: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
-    content: Mapped[str] = mapped_column(Text)
-    page: Mapped[int | None] = mapped_column(Integer, nullable=True)
-
-    # Relationships
-    user: Mapped["User"] = Relationship(back_populates="quotes")
-    user_book: Mapped["UserBook"] = Relationship(back_populates="quotes")
-
-    __table_args__: tuple[Any, ...]  = (
-                # Indexes
-            Index("ix_quotes_characters_gin", "characters", postgresql_using="gin"),
-            )
+    user_book: Mapped["UserBook"] = Relationship(back_populates="entries")
+    entry_tags: Mapped[list["EntryTag"]] = Relationship(back_populates="entries")
+    tags: AssociationProxy[Type] = association_proxy("entry_tags", "tags")
 
 class Tag(Base):
     __tablename__: str = "tags"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(50), unique=True)
-    genre: Mapped[str] = mapped_column(String(20))
-    rating_value: Mapped[int | None] = mapped_column(Integer)
-    meta_data: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
 
     book_tags: Mapped[list["BookTag"]] = Relationship(back_populates="tag")
-    note_tags: Mapped[list["NoteTag"]] = Relationship(back_populates="tag")
+    entry_tags: Mapped[list["EntryTag"]] = Relationship(back_populates="tag")
 
 class BookClub(Base):
     __tablename__: str = "book_clubs"
@@ -187,20 +138,19 @@ class BookTag(Base):
             UniqueConstraint('user_book_id', 'tag_id', name='_user_book_tag_uc'),
             )
 
-class NoteTag(Base):
-    __tablename__: str = "note_tags"
+class EntryTag(Base):
+    __tablename__: str = "entry_tags"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    note_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("notes.id"))
+    entry_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("entries.id"))
     tag_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tags.id"))
-    rating_value: Mapped[float | None] = mapped_column(Float)
 
     meta_data: Mapped[dict[str, Any]] = mapped_column(JSONB)
 
     # Relationships
-    notes: Mapped[list["Note"]] = Relationship(back_populates="note_tags")
-    tag: Mapped["Tag"] = Relationship(back_populates="note_tags")
+    entries: Mapped[list["Entry"]] = Relationship(back_populates="entry_tags")
+    tag: Mapped["Tag"] = Relationship(back_populates="entry_tags")
 
     __table_args__: tuple[Any, ...] = (
-            UniqueConstraint('note_id', 'tag_id', name='_user_note_tag_uc'),
+            UniqueConstraint('entry_id', 'tag_id', name='_user_entry_tag_uc'),
             )

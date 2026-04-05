@@ -1,6 +1,6 @@
 import httpx
 from app.database.unit_of_work import UnitOfWork
-from app.schemas.book import BookIngestSchema, DetailedBook, UserBookIngest
+from app.schemas.book import BookIngestSchema, DetailedBook, UserBookIngest, UserBookUpdateSchema
 from fastapi import HTTPException
 from pydantic import ValidationError
 from app.schemas.book import BookSearchResult
@@ -71,5 +71,4 @@ class GoogleBooksService:
         detailed_book = await self.uow.books.get_user_book(user_book_id=user_book_id)
         return detailed_book
 
-    async def save_book(self, schema: UserBookIngest):
-        return await self.uow.books.save_user_book(schema)
+

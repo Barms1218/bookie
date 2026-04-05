@@ -1,17 +1,14 @@
 from app.core.config import settings 
-from app.repositories.journal_repository import JournalRepository
-from app.repositories.quote_repository import QuoteRepository
 from app.services.book_services import GoogleBooksService
-from app.services.journal_service import JournalService
+from app.services.entry_service import EntryService 
 from app.services.user_service import UserService
-from app.services.tag_service import TagService
 from fastapi import Request, Depends
-from app.core.config import settings
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from app.repositories.book_repository import BookRepository 
 from app.repositories.user_repository import UserRepository 
 from app.repositories.tag_repository import TagRepository 
+from app.repositories.entry_repository import EntryRepository 
 from app.database import engine
 from app.database.unit_of_work import UnitOfWork
 
@@ -25,11 +22,8 @@ def get_book_repo(db: AsyncSession = Depends(get_db)) -> BookRepository:
 def get_user_repo(db: AsyncSession = Depends(get_db)) -> UserRepository:
     return UserRepository(db = db)
 
-def get_journal_repo(db: AsyncSession = Depends(get_db)) -> JournalRepository:
-    return JournalRepository(db = db)
-
-def get_quote_repo(db: AsyncSession = Depends(get_db)) -> QuoteRepository:
-    return QuoteRepository(db = db)
+def get_entry_repo(db: AsyncSession = Depends(get_db)) -> EntryRepository:
+    return EntryRepository(db = db)
 
 def get_tag_repo(db: AsyncSession = Depends(get_db)) -> TagRepository:
     return TagRepository(db = db)
@@ -57,15 +51,9 @@ def get_user_service(
     client = request.app.state.http_client
     return UserService(client=client, uow=uow)
 
-def get_journal_service(
+def get_entry_service(
         request: Request, 
         uow: UnitOfWork = Depends(get_unit_of_work)
-        ) -> JournalService:
-    return JournalService(client=request.app.state.http_client, uow=uow)
-
-def get_tag_service(
-        request: Request,
-        uow: UnitOfWork = Depends(get_unit_of_work)
-        ) -> TagService:
-        return TagService(client=request.app.state.http_client, uow=uow)
+        ) -> EntryService:
+    return EntryService(client=request.app.state.http_client, uow=uow)
 

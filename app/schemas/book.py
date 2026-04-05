@@ -68,6 +68,12 @@ class UserBookIngest(BaseModel):
     reading_status: str | None 
     rating: int | None = Field(None, ge=1, le=5)
 
+class UserBookUpdateSchema(BaseModel):
+    user_book_id: uuid.UUID
+    current_page: int | None
+    reading_status: str | None
+    rating: int | None = Field(None, ge=1, le=5)
+
 # Data to be sent to the front end when the user wants to 
 # Update their book
 class DetailedBook(BaseModel):
