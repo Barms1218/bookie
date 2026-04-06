@@ -1,7 +1,10 @@
 from typing import ClassVar, TypedDict, Any
-from pydantic import BaseModel, Field, ConfigDict, model_validator
+from pydantic import BaseModel, Field, ConfigDict, model_validator, field_validator
 from datetime import datetime
 import uuid
+import re
+
+from app.schemas.tags import PublicTag
 
 class IndustryIdentifier(TypedDict):
     type: str
@@ -64,19 +67,17 @@ class BookIngestSchema(BaseModel):
 class UserBookIngest(BaseModel):
     user_id: uuid.UUID
     book_id: uuid.UUID
+    shelf_id: uuid.UUID
     current_page: int | None 
     reading_status: str | None 
-    rating: int | None = Field(None, ge=1, le=5)
 
-class UserBookUpdateSchema(BaseModel):
+class ReadingStatusUpdateSchema(BaseModel):
     user_book_id: uuid.UUID
-    current_page: int | None
     reading_status: str | None
-    rating: int | None = Field(None, ge=1, le=5)
 
 # Data to be sent to the front end when the user wants to 
 # Update their book
-class DetailedBook(BaseModel):
+class BookCover(BaseModel):
     book_id: uuid.UUID
     title: str
     thumbnail: str | None 
@@ -84,8 +85,14 @@ class DetailedBook(BaseModel):
     categories: list[str] | None = Field(default_factory=list)
     authors: list[str] = Field(default_factory=list)
     total_pages: int | None 
-    added_at: datetime | None = None
-    rating: int | None = 0
+
+class UserBookCover(BaseModel):
+    user_book_id: uuid.UUID
+    title: str
+    thumbnail: str | None
+    description: str | None
+    authors: list[str] = Field(default_factory=list)
+    tags: list[BookTagSchema] | None
 
 class BookSearchResult(BaseModel):
     id: uuid.UUID
@@ -93,3 +100,13 @@ class BookSearchResult(BaseModel):
     title: str
     authors: list[str] = Field(default_factory=list)
 
+class BookTagSchema(BaseModel):
+    user_book_id: uuid.UUID
+    name: str
+    rating_value: int | None
+
+    @field_validator("name")
+    @classmethod
+    def clean_up_name(cls, n: str) -> str:
+        clean_text = re.sub(r'[^a-zA-Z0-9\s]', '', n) 
+        return clean_text.strip().title()

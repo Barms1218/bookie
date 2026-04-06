@@ -13,7 +13,7 @@ class EntryRepository:
         stmt = insert(Entry).values(**schema.model_dump(exclude={"tags"}))
 
         upsert_stmt = stmt.on_conflict_do_update(
-                index_elements=['created_on'],
+                index_elements=['user_book_id','created_on'],
                 set_={
                     Entry.content: stmt.excluded.content,
                     Entry.page_number: stmt.excluded.page_number,
@@ -24,11 +24,7 @@ class EntryRepository:
 
         result = await self.db.execute(upsert_stmt)
 
-        inserted_entry = result.scalar_one()
+        return result.scalar_one()
 
-        return EntryPublic(
-                id=inserted_entry.id,
-                content=inserted_entry.content,
-                page=inserted_entry.page_number if inserted_entry.page_number else 0
-                )
-
+            # async def get_quotes(self) -> list[EntryPublic]:
+    #     pass

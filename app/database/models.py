@@ -1,13 +1,26 @@
 from typing import Any
 from argon2 import Type
-from sqlalchemy import CheckConstraint, ForeignKey, String, Text, Integer, ARRAY, Index, Boolean, UniqueConstraint, func, Float, DateTime
+from sqlalchemy import CheckConstraint, Enum, ForeignKey, String, Text, Integer, ARRAY, Index, Boolean, UniqueConstraint, func, Float, DateTime
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, Relationship
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.ext.associationproxy import AssociationProxy, association_proxy
 import uuid
+import enum
 
+class EntryType(str, enum.Enum):
+    note = "note"
+    quote = "quote"
+    journal = "journal"
+
+
+class ReadingStatus(str, enum.Enum):
+    want_to_read = "Want To Read"
+    reading = "Reading"
+    finished = "Finished"
+    re_reading = "Re-Reading"
+    did_not_finish = "Did Not Finish"
 
 class Base(DeclarativeBase):
     pass
@@ -51,13 +64,11 @@ class UserBook(Base):
     # Foreign Keys
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    shelf_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("shelves.id"))
 
-    current_page: Mapped[int] = mapped_column(Integer, default=0) 
     deleted_at: Mapped[datetime | None] = mapped_column(
             DateTime(timezone=True), default=None) 
-    rating: Mapped[int | None] = mapped_column(default=0) 
-    reading_status: Mapped[str] = mapped_column(String(15), default="to-read")
-
+    reading_status: Mapped[ReadingStatus] = mapped_column(Enum(ReadingStatus, name="reading_status"), nullable=False)
     # Relationships
     user: Mapped["User"] = Relationship(back_populates="user_books")
     entries: Mapped[list["Entry"] | None] = Relationship(back_populates="user_book")
@@ -69,6 +80,20 @@ class UserBook(Base):
             CheckConstraint('rating >= 0 AND rating <= 5', name="rating_between_0_and_5"),
             )
 
+class BookCase(Base):
+    __tablename__: str = "bookcases"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    name: Mapped[str | None] = mapped_column(String(20))
+
+class Shelf(Base):
+    __tablename__: str = "shelves"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    bookcase_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("bookcases.id"))
+    positions: Mapped[int] = mapped_column(Integer)
+    capacity: Mapped[int] = mapped_column(Integer, default=1500)
 
 class Entry(Base):
     __tablename__: str = "entries"
@@ -81,10 +106,15 @@ class Entry(Base):
     created_on: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
     updated_on: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
     is_private: Mapped[bool] = mapped_column(Boolean, default=True)
+    type: Mapped[EntryType] = mapped_column(Enum(EntryType, name="entrytype"), nullable=False)
 
     user_book: Mapped["UserBook"] = Relationship(back_populates="entries")
     entry_tags: Mapped[list["EntryTag"]] = Relationship(back_populates="entries")
     tags: AssociationProxy[Type] = association_proxy("entry_tags", "tags")
+
+    __table_args__: tuple[Any, ...] = (
+            UniqueConstraint('user_book_id', 'created_on', name='entry_created_on'),
+            )
 
 class Tag(Base):
     __tablename__: str = "tags"

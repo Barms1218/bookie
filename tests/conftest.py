@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock
 from app.dependencies import UnitOfWork
-from app.services.journal_service import JournalService
+from app.services.entry_service import EntryService 
 
 pytest.fixture
 def mock_uow():
@@ -17,4 +17,4 @@ def mock_uow():
 def journal_service(mock_uow):
     """Provides a JournalService pre-configured with a mock UOW."""
     mock_client = AsyncMock()
-    return JournalService(client=mock_client, uow=mock_uow)
+    return EntryService(client=mock_client, uow=mock_uow)

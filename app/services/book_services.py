@@ -1,11 +1,14 @@
 import httpx
+from app.database.models import UserBook
 from app.database.unit_of_work import UnitOfWork
-from app.schemas.book import BookIngestSchema, DetailedBook, UserBookIngest, UserBookUpdateSchema
+from app.schemas.book_schemas import (BookIngestSchema, BookCover, BookTagSchema, 
+UserBookIngest, ReadingStatusUpdateSchema, BookSearchResult, UserBookCover)
 from fastapi import HTTPException
 from pydantic import ValidationError
-from app.schemas.book import BookSearchResult
 from datetime import datetime
 import uuid
+
+from app.schemas.tags import PublicTag
 
 
 class GoogleBooksService:
@@ -15,6 +18,8 @@ class GoogleBooksService:
         self.client: httpx.AsyncClient = client
         self.uow: UnitOfWork = uow 
 
+    # One day work on a feature that will get a total number of results between database
+    # And API
     async def get_book_with_term(self, term: str) -> list[BookSearchResult] | None:
         valid_books = []
         async with self.uow:
@@ -48,14 +53,14 @@ class GoogleBooksService:
 
         return valid_books 
 
-    async def view_book(self, book_id: uuid.UUID) -> DetailedBook:
+    async def view_book(self, book_id: uuid.UUID) -> BookCover:
         book = await self.uow.books.get_book_with_id(id=book_id)
 
         if not book:
             raise HTTPException(404, "No book found with that id")
 
 
-        detailed_book = DetailedBook(
+        detailed_book = BookCover(
                 book_id=book.id,
                 title=book.title,
                 thumbnail=book.meta_data.get("thumbnail"),
@@ -63,12 +68,25 @@ class GoogleBooksService:
                 categories=book.meta_data.get("categories"),
                 authors=book.authors,
                 total_pages=book.page_count
+    
                 )
+
         return detailed_book
 
-    async def view_book_dashboard(self,user_book_id: uuid.UUID) -> DetailedBook:
+    async def save_user_book(self, schema: UserBookIngest):
+        return await self.uow.books.save_user_book(book_schema=schema)
 
-        detailed_book = await self.uow.books.get_user_book(user_book_id=user_book_id)
+    async def view_user_book_dashboard(self,user_book_id: uuid.UUID) -> UserBookCover:
+        async with self.uow:    
+            detailed_book = await self.uow.books.get_user_book(user_book_id=user_book_id)
+
+            rows = await self.uow.books.get_book_tags(user_book_id=user_book_id)
+            detailed_book.tags = rows 
         return detailed_book
+    
+    async def change_reading_status(self, schema: ReadingStatusUpdateSchema) -> str | None:
+            updated_status = await self.uow.books.change_reading_status(schema=schema)
+            if not updated_status:
+                raise HTTPException(404, "No user book found")
 
-
+            return updated_status

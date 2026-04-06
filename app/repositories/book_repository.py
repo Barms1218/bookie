@@ -1,7 +1,15 @@
 from sqlalchemy import select, or_, func, update
 from sqlalchemy.dialects.postgresql import insert
-from app.schemas.book import BookIngestSchema, BookSearchResult, DetailedBook, UserBookIngest, UserBookUpdateSchema 
-from app.database.models import Book, UserBook
+from app.schemas.book_schemas import (
+        BookIngestSchema, 
+        BookSearchResult,
+        BookCover,
+        ReadingStatusUpdateSchema,
+        UserBookCover,
+        UserBookIngest,
+        BookTagSchema)
+from app.schemas.tags import PublicTag
+from app.database.models import Book, UserBook, BookTag, Tag
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 import uuid
@@ -74,10 +82,10 @@ class BookRepository:
         upsert_stmt = stmt.on_conflict_do_update(
                 index_elements=['book_id', 'user_id'],
                 set_={
-                    UserBook.added_at: func.now(),
-                    UserBook.reading_status: func.coalesce(stmt.excluded.reading_status, UserBook.reading_status),
-                    UserBook.current_page: func.coalesce(stmt.excluded.current_page, UserBook.current_page),
-                    UserBook.rating: func.coalesce(stmt.excluded.rating, UserBook.rating)
+                    UserBook.shelf_id: func.coalesce
+                    (stmt.excluded.shelf_id, UserBook.shelf_id),
+                    UserBook.reading_status: func.coalesce(
+                        stmt.excluded.reading_status, UserBook.reading_status),
                     }
                 ).returning(UserBook)
 
@@ -118,7 +126,7 @@ class BookRepository:
         ]
 
     # Need to accept a schema to update the book, probably just a UserBookUpdateSchema
-    async def get_user_book(self, user_book_id: uuid.UUID) -> DetailedBook:
+    async def get_user_book(self, user_book_id: uuid.UUID) -> UserBookCover:
         stmt = (
             select(UserBook, Book)
             .join(Book, UserBook.book_id == Book.id)
@@ -128,15 +136,13 @@ class BookRepository:
         result = await self.db.execute(stmt)
         user_book, book = result.one()
 
-        return DetailedBook(
-                book_id=book.id,
+        return UserBookCover(
+                user_book_id=user_book.id,
                 title=book.title,
                 thumbnail=book.meta_data["thumbnail"],
                 description=book.meta_data["description"],
-                categories=book.meta_data["categories"],
                 authors=book.authors,
-                total_pages=book.page_count,
-                rating=user_book.rating
+                tags=None
                 )
 
     async def get_book_by_isbn(self, isbn: str) -> Book | None:
@@ -165,3 +171,23 @@ class BookRepository:
 
         result = await self.db.execute(stmt)
         return result.scalar_one()
+
+    async def get_book_tags(self, user_book_id: uuid.UUID) -> list[BookTagSchema]:
+        stmt = (select(BookTag.id, Tag.name, BookTag.rating_value)
+                .join(Tag, BookTag.tag_id == Tag.id)
+        .where(BookTag.user_book_id == user_book_id))
+
+        results = await self.db.execute(stmt)
+
+        return [BookTagSchema.model_validate(row) for row in results.all()]
+    
+    async def change_reading_status(self, schema: ReadingStatusUpdateSchema):
+        stmt = (update(UserBook)
+                .where(UserBook.id == schema.user_book_id)
+                .values(reading_status = schema.reading_status)
+                .returning(UserBook.reading_status)
+                )
+
+        result = await self.db.execute(stmt)
+
+        return result.scalar_one_or_none()

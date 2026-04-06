@@ -3,6 +3,7 @@ from app.database.unit_of_work import UnitOfWork
 from app.schemas.entry_schemas import EntryIngestSchema, EntryPublic
 from fastapi import HTTPException
 
+from sqlalchemy.exc import NoResultFound
 from app.schemas.tags import EntryTagIngestSchema, PublicTag
 
 
@@ -14,8 +15,13 @@ class EntryService:
     async def submit_entry(self, schema: EntryIngestSchema) -> EntryPublic:
         new_tags = []
         async with self.uow:
-
-            entry = await self.uow.entries.create_entry(schema=schema)
+            row = await self.uow.entries.create_entry(schema=schema)
+            entry = EntryPublic(
+                id=row.id,
+                content=row.content,
+                page=row.page_number if row.page_number else 0
+                )
+    #
 
             if schema.tags:
                 new_tags = await self.uow.tags.create_tags(schemas=schema.tags)
@@ -34,3 +40,6 @@ class EntryService:
             entry.tags = [PublicTag(id=t.tag_id, name=t.name, rating_value=None) for t in entry_tags]
 
         return entry 
+    #
+    # async def get_entries(self, type: str) -> list[EntryPublic]:
+    #     pass
