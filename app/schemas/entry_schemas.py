@@ -1,8 +1,7 @@
 import re
 from pydantic import BaseModel, Field,field_validator 
+from datetime import datetime
 import uuid
-
-from app.schemas.tags import PublicTag
 
 class EntryIngestSchema(BaseModel):
     user_book_id: uuid.UUID 
@@ -32,5 +31,19 @@ class EntryPublic(BaseModel):
     id: uuid.UUID
     content: str
     page: int
-    tags: list[PublicTag] | None = Field(default_factory=list)
+    tags: list[EntryTag] | None = Field(default_factory=list)
 
+class EntryTag(BaseModel):
+    entry_tag_id: uuid.UUID
+    name: str
+
+class EntryTagIngestSchema(BaseModel):
+    entry_id: uuid.UUID
+    tag_id: uuid.UUID
+    name: str
+
+class EntrySearchSchema(BaseModel):
+    type: str | None
+    content: str | None
+    tag_name: str | None
+    date: datetime | None

@@ -4,6 +4,7 @@ from datetime import datetime
 import uuid
 import re
 
+from app.schemas.entry_schemas import EntryPublic
 from app.schemas.tags import PublicTag
 
 class IndustryIdentifier(TypedDict):
@@ -12,7 +13,6 @@ class IndustryIdentifier(TypedDict):
 
 class BookMetadata(BaseModel):
     categories: list[str] = Field(default_factory=list)
-    description: str | None = None
     small_thumbnail: str | None = None
     thumbnail: str | None = None
     identifiers: list[dict[str, str]] = Field(default_factory=list, alias="industryIdentifiers")
@@ -25,6 +25,7 @@ class BookIngestSchema(BaseModel):
     isbn: str | None = None
     authors: list[str]= Field(default_factory=list) # Make sure every model has its own list
     page_count: int = Field(default=0, alias="pageCount")
+    description: str | None = None 
     
     meta_data: BookMetadata = Field(alias="metadata")
 
@@ -53,7 +54,6 @@ class BookIngestSchema(BaseModel):
        # We put these inside a new dict specifically for the Metadata model
        metadata_payload = {
             "categories": data.get("categories", []),
-            "description": data.get("description"),
             "publisher": data.get("publisher"),
             "small_thumbnail": image_links.get("smallThumbnail"),
             "thumbnail": image_links.get("thumbnail")
@@ -68,7 +68,6 @@ class UserBookIngest(BaseModel):
     user_id: uuid.UUID
     book_id: uuid.UUID
     shelf_id: uuid.UUID
-    current_page: int | None 
     reading_status: str | None 
 
 class ReadingStatusUpdateSchema(BaseModel):
@@ -110,3 +109,7 @@ class BookTagSchema(BaseModel):
     def clean_up_name(cls, n: str) -> str:
         clean_text = re.sub(r'[^a-zA-Z0-9\s]', '', n) 
         return clean_text.strip().title()
+
+class BookEntries(BaseModel):
+    id: uuid.UUID
+    entries: list[EntryPublic]

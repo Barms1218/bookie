@@ -1,43 +1,35 @@
 from sqlalchemy import select, or_, func, update
 from sqlalchemy.dialects.postgresql import insert
-from app.schemas.book_schemas import (
-        BookIngestSchema, 
-        BookSearchResult,
-        BookCover,
-        ReadingStatusUpdateSchema,
-        UserBookCover,
-        UserBookIngest,
-        BookTagSchema)
-from app.schemas.tags import PublicTag
-from app.database.models import Book, UserBook, BookTag, Tag
+from sqlalchemy.orm import contains_eager, selectinload 
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 import uuid
-
-
+import app.schemas as schemas
+import app.database.models as models
 
 class BookRepository:
     def __init__(self, db: AsyncSession):
         self.db: AsyncSession = db
 
-    async def search_books_local(self, term: str) -> list[BookSearchResult]:
+    async def search_books_local(self, term: str) -> list[schemas.BookSearchResult]:
         search_term = f"%{term}%"
         stmt = (
-                select(Book)
+                select(models.Book)
                 .where(
                     or_(
                         # 1. Case-insensitive Title search
-                        Book.title.ilike(search_term),
+                        models.Book.title.ilike(search_term),
                     
                         # 2. Check if the Authors list (Postgres Array) contains the term
                         # This is faster than a string search for lists
-                        func.array_to_string(Book.authors, ' ').ilike(search_term), 
+                        models.Book.authors.contains([search_term]), 
                     
-                        # 3. Reach into the JSONB 'extra_metadata' to search the description
-                        # ->> extracts as text so we can use .ilike()
-                        Book.meta_data["description"].astext.ilike(search_term)
+                        models.Book.ts_vector.match(search_term),
                     )
                 )
+                .where(models.Book.title.not_ilike("%Box Set%"))
+                .where(models.Book.title.not_ilike("%Full Series%"))
+                        
                 .limit(20) # Good practice to avoid dumping 10k rows into memory
         )
         result = await self.db.execute(stmt) # Get the rows object from sql
@@ -46,8 +38,8 @@ class BookRepository:
         
         # List comprehension to turn all the search results into something the user will want to see.
         # They can get more information when looking at the books in-depth in their library.
-        books: list[BookSearchResult] = [
-                BookSearchResult(id=s.id,
+        books: list[schemas.BookSearchResult] = [
+                schemas.BookSearchResult(id=s.id,
                                  thumbnail=s.meta_data.get("small_thumbnail"),
                                  title=s.title,
                                  authors=s.authors)
@@ -58,36 +50,36 @@ class BookRepository:
         
 
     # Upsert function. If there's a conflict on the isbn update the title
-    async def save_book_to_db(self, book_schema: BookIngestSchema):
+    async def save_book_to_db(self, book_schema: schemas.BookIngestSchema):
         # Prepare the insert
         data = book_schema.model_dump()
 
         print(data)
-        stmt = insert(Book).values(**data)
+        stmt = insert(models.Book).values(**data)
         upsert_stmt = stmt.on_conflict_do_update(
                 index_elements=['isbn'],
                 set_={
-                    Book.title: stmt.excluded.title,
-                    Book.page_count: stmt.excluded.page_count,
-                    Book.meta_data: stmt.excluded.meta_data
+                    models.Book.title: stmt.excluded.title,
+                    models.Book.page_count: stmt.excluded.page_count,
+                    models.Book.meta_data: stmt.excluded.meta_data
                     }
-                ).returning(Book)
+                ).returning(models.Book)
         result = await self.db.execute(upsert_stmt)
         return result.scalar_one()
 
-    async def save_user_book(self, book_schema: UserBookIngest):
+    async def save_user_book(self, book_schema: schemas.UserBookIngest):
         uploaded_book = book_schema.model_dump()
 
-        stmt = insert(UserBook).values(**uploaded_book)
+        stmt = insert(models.UserBook).values(**uploaded_book)
         upsert_stmt = stmt.on_conflict_do_update(
                 index_elements=['book_id', 'user_id'],
                 set_={
-                    UserBook.shelf_id: func.coalesce
-                    (stmt.excluded.shelf_id, UserBook.shelf_id),
-                    UserBook.reading_status: func.coalesce(
-                        stmt.excluded.reading_status, UserBook.reading_status),
+                    models.UserBook.shelf_id: func.coalesce
+                    (stmt.excluded.shelf_id, models.UserBook.shelf_id),
+                    models.UserBook.reading_status: func.coalesce(
+                        stmt.excluded.reading_status, models.UserBook.reading_status),
                     }
-                ).returning(UserBook)
+                ).returning(models.UserBook)
 
         result = await self.db.execute(upsert_stmt)
         await self.db.commit()
@@ -95,17 +87,17 @@ class BookRepository:
         return row
 
 
-    async def get_user_books(self, user_id: uuid.UUID) -> list[BookSearchResult]:
+    async def get_user_books(self, user_id: uuid.UUID) -> list[schemas.BookSearchResult]:
         stmt = (
             select(
-                UserBook.book_id.label("id"),
-                Book.title,
-                Book.authors,
+                models.UserBook.book_id.label("id"),
+                models.Book.title,
+                models.Book.authors,
                 # Pull the thumbnail out of JSONB and label it exactly as the schema expects
-                Book.meta_data["small_thumbnail"].astext.label("thumbnail") 
+                models.Book.meta_data["small_thumbnail"].astext.label("thumbnail") 
             )
-            .join(Book, UserBook.book_id == Book.id)
-            .where(UserBook.user_id == user_id, UserBook.deleted_at.is_(None))
+            .join(models.Book, models.UserBook.book_id == models.Book.id)
+            .where(models.UserBook.user_id == user_id, models.UserBook.deleted_at.is_(None))
         )
 
         result = await self.db.execute(stmt)
@@ -116,7 +108,7 @@ class BookRepository:
 
         # 3. Manually create the SearchResult list
         return [
-            BookSearchResult(
+            schemas.BookSearchResult(
                 id=row["id"],
                 thumbnail=row["thumbnail"],
                 title=row["title"],
@@ -126,68 +118,83 @@ class BookRepository:
         ]
 
     # Need to accept a schema to update the book, probably just a UserBookUpdateSchema
-    async def get_user_book(self, user_book_id: uuid.UUID) -> UserBookCover:
+    async def get_user_book(
+            self,
+            user_id: uuid.UUID,
+            book_id: uuid.UUID):
         stmt = (
-            select(UserBook, Book)
-            .join(Book, UserBook.book_id == Book.id)
-            .where(UserBook.id == user_book_id)
-            )
-
+                select(models.UserBook)
+                .join(models.Book, models.UserBook.book_id == book_id)
+                .where(models.UserBook.user_id == user_id, models.UserBook.book_id == book_id)
+                .options(
+                    contains_eager(models.UserBook.book),
+                    selectinload(models.UserBook.book_tags),
+                    selectinload(models.UserBook.entries)
+                    )
+                )    
         result = await self.db.execute(stmt)
-        user_book, book = result.one()
+        return result.one_or_none()
 
-        return UserBookCover(
-                user_book_id=user_book.id,
-                title=book.title,
-                thumbnail=book.meta_data["thumbnail"],
-                description=book.meta_data["description"],
-                authors=book.authors,
-                tags=None
-                )
-
-    async def get_book_by_isbn(self, isbn: str) -> Book | None:
-        stmt = select(Book).where(Book.isbn == isbn)
+    async def get_book_by_isbn(self, isbn: str) -> models.Book | None:
+        stmt = select(models.Book).where(models.Book.isbn == isbn)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_book_with_id(self, id: uuid.UUID) -> Book | None:
-        stmt = select(Book).where(Book.id == id)
+    async def get_book_with_id(self, id: uuid.UUID) -> models.Book | None:
+        stmt = select(models.Book).where(models.Book.id == id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_books(self) -> list[Book]:
+    async def get_books(self) -> list[models.Book]:
         stmt = (
-                select(Book)
+                select(models.Book)
                 ).limit(20)
 
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
     async def delete_book(self, book_id: uuid.UUID) -> datetime:
-        stmt = (update(UserBook)
-        .where(UserBook.id == book_id)
+        stmt = (update(models.UserBook)
+        .where(models.UserBook.id == book_id)
         .values(deleted_at =func.now())
         )
 
         result = await self.db.execute(stmt)
         return result.scalar_one()
 
-    async def get_book_tags(self, user_book_id: uuid.UUID) -> list[BookTagSchema]:
-        stmt = (select(BookTag.id, Tag.name, BookTag.rating_value)
-                .join(Tag, BookTag.tag_id == Tag.id)
-        .where(BookTag.user_book_id == user_book_id))
+    async def get_book_tags(self, user_book_id: uuid.UUID) -> list[schemas.BookTagSchema]:
+        stmt = (select(models.BookTag.id, models.Tag.name, models.BookTag.rating_value)
+                .join(models.Tag, models.BookTag.tag_id == models.Tag.id)
+        .where(models.BookTag.user_book_id == user_book_id))
 
         results = await self.db.execute(stmt)
 
-        return [BookTagSchema.model_validate(row) for row in results.all()]
+        return [schemas.BookTagSchema.model_validate(row) for row in results.all()]
     
-    async def change_reading_status(self, schema: ReadingStatusUpdateSchema):
-        stmt = (update(UserBook)
-                .where(UserBook.id == schema.user_book_id)
+    async def change_reading_status(self, schema: schemas.ReadingStatusUpdateSchema):
+        stmt = (update(models.UserBook)
+                .where(models.UserBook.id == schema.user_book_id)
                 .values(reading_status = schema.reading_status)
-                .returning(UserBook.reading_status)
+                .returning(models.UserBook.reading_status)
                 )
 
         result = await self.db.execute(stmt)
 
         return result.scalar_one_or_none()
+
+    async def create_entry(self, schema: schemas.EntryIngestSchema):
+        stmt = insert(models.Entry).values(**schema.model_dump(exclude={"tags"}))
+
+        upsert_stmt = stmt.on_conflict_do_update(
+                index_elements=['user_book_id','created_on'],
+                set_={
+                    models.Entry.content: stmt.excluded.content,
+                    models.Entry.page_number: stmt.excluded.page_number,
+                    models.Entry.updated_on: func.now(),
+                    models.Entry.is_private: stmt.excluded.is_private
+                    }
+                ).returning(models.Entry)
+
+        result = await self.db.execute(upsert_stmt)
+
+        return result.scalar_one()

@@ -1,6 +1,6 @@
 from fastapi import HTTPException, Request, APIRouter, Depends
 from app.dependencies import get_entry_service 
-from app.schemas.entry_schemas import EntryIngestSchema, EntryPublic
+from app.schemas.entry_schemas import EntryIngestSchema, EntryPublic, EntrySearchSchema
 from app.services.entry_service import EntryService
 
 router: APIRouter = APIRouter(prefix="/entries", tags=["entries"])
@@ -14,3 +14,9 @@ async def get_type_of_entry(type: str, service: EntryService = Depends(get_entry
     pass
 
 # TODO Endpoint to get entries filtered by type and date
+@router.get("search", response_model=EntryPublic, status_code=200)
+async def search_entries(
+        schema: EntrySearchSchema,
+        service: EntryService = Depends(get_entry_service)
+        ) -> list[EntryPublic]:
+    pass
