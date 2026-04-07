@@ -79,8 +79,8 @@ class EntryTag(BaseModel):
     """
 
     Attributes: 
-        entry_tag_id: 
-        name: 
+        entry_tag_id: The id of the entry that  tag is being added to
+        name: The name of the tag
     """
     entry_tag_id: uuid.UUID
     name: str
@@ -101,13 +101,13 @@ class EntrySearchSchema(BaseModel):
     """
 
     Attributes: 
-        type: 
-        content: 
-        tag_name: 
-        date: 
+        type: The type of entry being searched for
+        content: Optional field to search content
+        tag_name: Optional field to searched based on tags
+        date: Tuple that can search in between the indices
     """
     user_book_id: uuid.UUID
     type: str | None
     content: str | None
-    tag_name: str | None
-    date: tuple[datetime, datetime] | None
+    tag_names: list[str] | None
+    dates: tuple[datetime, datetime] | None

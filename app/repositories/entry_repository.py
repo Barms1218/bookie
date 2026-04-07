@@ -24,7 +24,7 @@ class EntryRepository:
 
         return result.scalars().all()
 
-    async def create_entry_tag(self, tags: list[schemas.EntryTagIngestSchema]):
+    async def create_entry_tag(self, tags: list[schemas.EntryTagIngestSchema]) -> list[models.EntryTag]:
         """
 
         Args:
@@ -41,5 +41,27 @@ class EntryRepository:
 
         result = await self.db.execute(upsert_stmt)
 
-        
+        return list(result.scalars().all())
+
+    async def get_e(self, search_schema: schemas.EntrySearchSchema) -> list[models.Entry]:
+        stmt = select(models.Entry).where(models.Entry.user_book_id == search_schema.user_book_id)
+
+        if search_schema.type:
+            stmt = stmt.where(models.Entry.type == search_schema.type)
+
+        if search_schema.tag_names:
+            stmt = (stmt.join(models.EntryTag, models.Entry.id == models.EntryTag.entry_id)
+            .join(models.Tag, models.EntryTag.tag_id == models.Tag.id)
+            .where(models.Tag.name.in_(search_schema.tag_names)))
+
+        if search_schema.content:
+            stmt = stmt.where(models.Entry.ts_vector.match(search_schema.content))
+
+        if search_schema.dates:
+            stmt = stmt.where(models.Entry.created_on.between(search_schema.dates[0], search_schema.dates[1]))
+
+        stmt = stmt.options(selectinload(models.Entry.entry_tags).selectinload(models.EntryTag.tag))
+        results = await self.db.execute(stmt)
+
+        return list(results.scalars().all())
 
