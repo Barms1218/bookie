@@ -1,17 +1,14 @@
-from app.repositories.entry_repository import EntryRepository
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.repositories.book_repository import BookRepository 
-from app.repositories.tag_repository import TagRepository
-from app.repositories.user_repository import UserRepository 
+import app.repositories as repos
 
 
 class UnitOfWork:
     def __init__(self, db: AsyncSession):
         self.db: AsyncSession = db
-        self.books: BookRepository = BookRepository(self.db) 
-        self.users: UserRepository = UserRepository(self.db) 
-        self.entries: EntryRepository = EntryRepository(self.db) 
-        self.tags: TagRepository = TagRepository(self.db)
+        self.books: repos.BookRepository = repos.BookRepository(self.db) 
+        self.users: repos.UserRepository = repos.UserRepository(self.db) 
+        self.entries: repos.EntryRepository = repos.EntryRepository(self.db) 
+        self.tags: repos.TagRepository = repos.TagRepository(self.db)
 
     async def commit(self):
         await self.db.commit()

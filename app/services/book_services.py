@@ -8,6 +8,14 @@ import uuid
 
 
 class BookService:
+    """
+
+    Attributes: 
+        api_key: 
+        base_url: 
+        client: 
+        uow: 
+    """
     def __init__(self, api_key: str, client: httpx.AsyncClient, uow: UnitOfWork):
         self.api_key: str = api_key
         self.base_url: str = "https://www.googleapis.com/books/v1/volumes"
@@ -17,6 +25,17 @@ class BookService:
     # One day work on a feature that will get a total number of results between database
     # And API
     async def get_book_with_term(self, term: str) -> list[schemas.BookSearchResult] | None:
+        """
+
+        Args:
+            term: 
+
+        Returns:
+            
+
+        Raises:
+            HTTPException: 
+        """
         valid_books = []
         async with self.uow:
                 db_books = await self.uow.books.search_books_local(term) 
@@ -53,6 +72,18 @@ class BookService:
             self, 
             user_id: uuid.UUID, 
             book_id: uuid.UUID) -> schemas.BookCover | schemas.UserBookCover:
+        """
+
+        Args:
+            user_id: 
+            book_id: 
+
+        Returns:
+            
+
+        Raises:
+            HTTPException: 
+        """
         async with self.uow:
             result = await self.uow.books.get_user_book(user_id=user_id, book_id=book_id)
             if result:
@@ -79,9 +110,28 @@ class BookService:
                     )
 
     async def save_user_book(self, schema: schemas.UserBookIngest):
+        """
+
+        Args:
+            schema: 
+
+        Returns:
+            
+        """
         return await self.uow.books.save_user_book(book_schema=schema)
 
     async def change_reading_status(self, schema: schemas.ReadingStatusUpdateSchema) -> str | None:
+            """
+
+            Args:
+                schema: A schema holding an id to a user book and the new reading status
+
+            Returns: The new reading status
+                
+
+            Raises:
+                HTTPException: If the sql update failed
+            """
             updated_status = await self.uow.books.change_reading_status(schema=schema)
             if not updated_status:
                 raise HTTPException(404, "No user book found")
@@ -101,27 +151,29 @@ class BookService:
         """
         new_tags = []
         async with self.uow:
-            row = await self.uow.books.create_entry(schema=schema)
+            row = await self.uow.books.create_book_entry(schema=schema)
             entry = schemas.EntryPublic(
                 id=row.id,
                 content=row.content,
                 page=row.page_number if row.page_number else 0
                 )
-    #
-
-            if schema.tags:
-                new_tags = await self.uow.tags.create_tags(schemas=schema.tags)
             
+            new_tags = []
+            if schema.tags:
+                names: list[str] = [t.name for t in schema.tags]              
+                new_tags = await self.uow.tags.get_or_create_tags(names=names)
+                
+            tag_lookup = {t.name: t.id for t in new_tags }
             entry_tags: list[schemas.EntryTagIngestSchema] = [
                     schemas.EntryTagIngestSchema(
                         entry_id=entry.id,
-                        tag_id= t.id,
+                        tag_id=tag_lookup[t.name],
                         name=t.name
                         )
                     for t in new_tags
                     ] 
 
-            _ = await self.uow.tags.create_entry_tag(schemas=entry_tags) 
+            _ = await self.uow.entries.create_entry_tag(tags=entry_tags) 
 
             entry.tags = [schemas.EntryTag(entry_tag_id=t.tag_id, name=t.name) for t in entry_tags]
 

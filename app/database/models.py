@@ -137,7 +137,7 @@ class Entry(Base):
         EntryType, name="entrytype"), nullable=False)
 
     user_book: Mapped["UserBook"] = Relationship(back_populates="entries")
-    entry_tags: Mapped[list["EntryTag"]] = Relationship(back_populates="entries")
+    entry_tags: Mapped[list["EntryTag"]] = Relationship(back_populates="entry")
     tags: AssociationProxy[list["Tag"]] = association_proxy("entry_tags", "tags")
 
     __table_args__: tuple[Any, ...] = (
@@ -202,7 +202,7 @@ class EntryTag(Base):
     tag_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tags.id"))
 
     # Relationships
-    entries: Mapped[list["Entry"]] = Relationship(back_populates="entry_tags")
+    entry: Mapped["Entry"] = Relationship(back_populates="entry_tag")
     tag: Mapped["Tag"] = Relationship(back_populates="entry_tags")
 
     __table_args__: tuple[Any, ...] = (

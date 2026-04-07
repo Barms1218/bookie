@@ -5,7 +5,6 @@ import uuid
 import re
 
 from app.schemas.entry_schemas import EntryPublic
-from app.schemas.tags import PublicTag
 
 class IndustryIdentifier(TypedDict):
     type: str

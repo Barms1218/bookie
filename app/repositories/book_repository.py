@@ -128,8 +128,7 @@ class BookRepository:
                 .where(models.UserBook.user_id == user_id, models.UserBook.book_id == book_id)
                 .options(
                     contains_eager(models.UserBook.book),
-                    selectinload(models.UserBook.book_tags),
-                    selectinload(models.UserBook.entries)
+                    selectinload(models.UserBook.book_tags)
                     )
                 )    
         result = await self.db.execute(stmt)
@@ -182,7 +181,15 @@ class BookRepository:
 
         return result.scalar_one_or_none()
 
-    async def create_entry(self, schema: schemas.EntryIngestSchema):
+    async def create_book_entry(self, schema: schemas.EntryIngestSchema):
+        """
+
+        Args:
+            schemas: 
+
+        Returns:
+            
+        """
         stmt = insert(models.Entry).values(**schema.model_dump(exclude={"tags"}))
 
         upsert_stmt = stmt.on_conflict_do_update(
@@ -198,3 +205,7 @@ class BookRepository:
         result = await self.db.execute(upsert_stmt)
 
         return result.scalar_one()
+
+    async def get_book_entries(self, user_book_id: uuid.UUID):
+        pass
+
