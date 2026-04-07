@@ -1,4 +1,5 @@
 import httpx
+from sqlalchemy.sql.functions import user
 from app.database.unit_of_work import UnitOfWork
 import app.schemas as schemas
 from fastapi import HTTPException
@@ -109,7 +110,7 @@ class BookService:
                     total_pages=book.page_count
                     )
 
-    async def save_user_book(self, schema: schemas.UserBookIngest):
+    async def save_user_book(self, schema: schemas.UserBookIngest) -> schemas.UserBookCover | None:
         """
 
         Args:
@@ -118,30 +119,53 @@ class BookService:
         Returns:
             
         """
-        return await self.uow.books.save_user_book(book_schema=schema)
+        async with self.uow:
+            # 1. Handle Tags
+            tag_names = [t.name for t in schema.tags] if schema.tags else []
+            tags_from_db = await self.uow.tags.get_or_create_tags(names=tag_names)
+            
+            # Create a lookup: {"History": UUID-123, "Fiction": UUID-456}
+            tag_lookup = {t.id: t.name for t in tags_from_db}
+        
+            # 2. Save the UserBook
+            user_book = await self.uow.books.save_user_book(book_schema=schema)
+        
+            # 3. Build the Upsert List
+            # We loop over the schema.tags because that's where the 'rating_value' is!
 
-    async def change_reading_status(self, schema: schemas.ReadingStatusUpdateSchema) -> str | None:
-            """
+        
+            # 4. Perform the Upsert
+            # Assuming your upsert function takes a list of schemas
+            inserted_tags = await self.uow.books.upsert_book_tags(schemas=schema.tags)
 
-            Args:
-                schema: A schema holding an id to a user book and the new reading status
+            book_tags: list[schemas.BookTagDisplay] = [
+                    schemas.BookTagDisplay(
+                        id=t.id,
+                        name=tag_lookup[t.id],
+                        rating_value=t.rating_value
 
-            Returns: The new reading status
-                
-
-            Raises:
-                HTTPException: If the sql update failed
-            """
-            updated_status = await self.uow.books.change_reading_status(schema=schema)
-            if not updated_status:
-                raise HTTPException(404, "No user book found")
-
-            return updated_status
-
+                        )
+                    for t in inserted_tags
+                    ]
+        
+            # 5. Get Book
+            book = await self.uow.books.get_book_with_id(user_book.book_id)
+            if not book:
+                raise HTTPException(404, "Book not found")
+          
+            return schemas.UserBookCover(
+                   user_book_id=user_book.id,
+                   title=book.title,
+                   thumbnail=book.meta_data.get("Thumbnail"),
+                   description=book.description,
+                   authors=book.authors,
+                   tags=book_tags
+                    )
 
     async def submit_entry(self, schema: schemas.EntryIngestSchema) -> schemas.EntryPublic:
         """
-        Creates an entry along with any tags the user attaches during creation
+        Insert new tags, then use the returned tags alongside a returned entry from the database
+        to create a schema that can be sent back to the user
 
         Args:
         schema: The EntryIngestionSchema containing the user book id, content,
@@ -151,30 +175,50 @@ class BookService:
         """
         new_tags = []
         async with self.uow:
-            row = await self.uow.books.create_book_entry(schema=schema)
-            entry = schemas.EntryPublic(
-                id=row.id,
-                content=row.content,
-                page=row.page_number if row.page_number else 0
-                )
-            
-            new_tags = []
-            if schema.tags:
-                names: list[str] = [t.name for t in schema.tags]              
-                new_tags = await self.uow.tags.get_or_create_tags(names=names)
-                
-            tag_lookup = {t.name: t.id for t in new_tags }
-            entry_tags: list[schemas.EntryTagIngestSchema] = [
-                    schemas.EntryTagIngestSchema(
-                        entry_id=entry.id,
-                        tag_id=tag_lookup[t.name],
-                        name=t.name
-                        )
-                    for t in new_tags
-                    ] 
+            try:
+                new_tags = []
+                if schema.tags:
+                    names: list[str] = [t.name for t in schema.tags]         
+                    new_tags = await self.uow.tags.get_or_create_tags(names=names)
+                row = await self.uow.books.create_book_entry(schema=schema)
+                entry = schemas.EntryPublic(
+                    id=row.id,
+                    content=row.content,
+                    page=row.page,
+                    chapter=row.chapter,
+                    tags=[
+                        schemas.EntryTag(
+                            entry_id=row.id,
+                            tag_id=t.id,
+                            name=t.name
+                            )
+                        for t in new_tags
+                        ]
+                    )
+            except:
+                self.uow.rollback
+                raise HTTPException(500, "Failed to insert book entry")
 
-            _ = await self.uow.entries.create_entry_tag(tags=entry_tags) 
+            return entry 
 
-            entry.tags = [schemas.EntryTag(entry_tag_id=t.tag_id, name=t.name) for t in entry_tags]
+    async def get_entries_for_book(self, user_book_id: uuid.UUID, entry_type: str) -> list[schemas.EntryPublic] | None:
+        entries = await self.uow.entries.get_book_entries(user_book_id=user_book_id, type=entry_type)
+        entry_schemas: list[schemas.EntryPublic] = [
+                schemas.EntryPublic(
+                    id=e.id,
+                    content=e.content,
+                    page=e.page,
+                    chapter=e.chapter,
+                    tags=[
+                        schemas.EntryTag(
+                            entry_id=e.id,
+                            tag_id=t.id,
+                            name=t.name
+                            )
+                        for t in e.tags
+                        ]
+                    )
+                    for e in entries
+                ]
 
-        return entry 
+        return entry_schemas

@@ -1,8 +1,9 @@
-from sqlalchemy import select, or_, func, update
+from sqlalchemy import Row, select, or_, func, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import contains_eager, selectinload 
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
+from typing import Any
 import uuid
 import app.schemas as schemas
 import app.database.models as models
@@ -50,7 +51,7 @@ class BookRepository:
         
 
     # Upsert function. If there's a conflict on the isbn update the title
-    async def save_book_to_db(self, book_schema: schemas.BookIngestSchema):
+    async def save_book_to_db(self, book_schema: schemas.BookIngestSchema) -> models.Book:
         # Prepare the insert
         data = book_schema.model_dump()
 
@@ -67,8 +68,8 @@ class BookRepository:
         result = await self.db.execute(upsert_stmt)
         return result.scalar_one()
 
-    async def save_user_book(self, book_schema: schemas.UserBookIngest):
-        uploaded_book = book_schema.model_dump()
+    async def save_user_book(self, book_schema: schemas.UserBookIngest) -> models.UserBook:
+        uploaded_book = book_schema.model_dump(exclude={'tags'})
 
         stmt = insert(models.UserBook).values(**uploaded_book)
         upsert_stmt = stmt.on_conflict_do_update(
@@ -87,7 +88,7 @@ class BookRepository:
         return row
 
 
-    async def get_user_books(self, user_id: uuid.UUID) -> list[schemas.BookSearchResult]:
+    async def get_user_books(self, user_id: uuid.UUID) -> Row[tuple[uuid.UUID, str, list[str], Any]] | None:
         stmt = (
             select(
                 models.UserBook.book_id.label("id"),
@@ -104,24 +105,15 @@ class BookRepository:
         
         # 1. Use .mappings() so each row looks like a dict
         # 2. Use .all() because we have multiple columns (NOT .scalars())
-        rows = result.mappings().all()
-
-        # 3. Manually create the SearchResult list
-        return [
-            schemas.BookSearchResult(
-                id=row["id"],
-                thumbnail=row["thumbnail"],
-                title=row["title"],
-                authors=row["authors"]
-            )
-            for row in rows
-        ]
+        #rows = result.mappings().all()
+        rows = result.one_or_none()
+        return rows
 
     # Need to accept a schema to update the book, probably just a UserBookUpdateSchema
     async def get_user_book(
             self,
             user_id: uuid.UUID,
-            book_id: uuid.UUID):
+            book_id: uuid.UUID) -> Row[tuple[models.UserBook]] | None:
         stmt = (
                 select(models.UserBook)
                 .join(models.Book, models.UserBook.book_id == book_id)
@@ -161,25 +153,28 @@ class BookRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one()
 
-    async def get_book_tags(self, user_book_id: uuid.UUID) -> list[schemas.BookTagSchema]:
-        stmt = (select(models.BookTag.id, models.Tag.name, models.BookTag.rating_value)
-                .join(models.Tag, models.BookTag.tag_id == models.Tag.id)
-        .where(models.BookTag.user_book_id == user_book_id))
+    async def upsert_book_tags(self, schemas: list[schemas.BookTag]) -> list[models.BookTag]:
+        payload = [
+                {
+                    "user_book_id": s.user_book_id,
+                    "tag_id": s.tag_id,
+                    "rating_value": s.rating_value
+                    }
+                for s in schemas
+                ]
+        stmt = insert(models.BookTag).values(payload)
 
-        results = await self.db.execute(stmt)
-
-        return [schemas.BookTagSchema.model_validate(row) for row in results.all()]
-    
-    async def change_reading_status(self, schema: schemas.ReadingStatusUpdateSchema):
-        stmt = (update(models.UserBook)
-                .where(models.UserBook.id == schema.user_book_id)
-                .values(reading_status = schema.reading_status)
-                .returning(models.UserBook.reading_status)
+        upsert_stmt = stmt.on_conflict_do_update(
+                index_elements=['user_book_id', 'tag_id'],
+                set_={
+                    "rating_value": stmt.excluded.rating_value
+                    }
                 )
 
-        result = await self.db.execute(stmt)
+        result = await self.db.execute(upsert_stmt)
 
-        return result.scalar_one_or_none()
+        return list(result.scalars().all())
+
 
     async def create_book_entry(self, schema: schemas.EntryIngestSchema):
         """
@@ -196,7 +191,7 @@ class BookRepository:
                 index_elements=['user_book_id','created_on'],
                 set_={
                     models.Entry.content: stmt.excluded.content,
-                    models.Entry.page_number: stmt.excluded.page_number,
+                    models.Entry.page: stmt.excluded.page,
                     models.Entry.updated_on: func.now(),
                     models.Entry.is_private: stmt.excluded.is_private
                     }

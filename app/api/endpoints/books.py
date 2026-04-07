@@ -1,13 +1,13 @@
 from typing import Annotated
 from app.dependencies import get_book_service
-from fastapi import APIRouter, Depends  
+from fastapi import APIRouter, Depends, HTTPException  
 from app.services.book_services import BookService
 import uuid
 import app.schemas as schemas
 
 router = APIRouter(prefix="/books", tags=["books"])
 
-@router.get("/search", 
+@router.get("/search/{term}", 
             response_model=list[schemas.BookSearchResult],
             status_code=200)
 async def search_books(
@@ -29,28 +29,18 @@ async def add_user_book(schema: schemas.UserBookIngest, service: Annotated[BookS
     return await service.save_user_book(schema=schema)
 
 
-@router.post("/status_update", 
-             response_model=schemas.ReadingStatusUpdateSchema,
-             status_code=200)
-async def update_readingStatus(
-        schema: schemas.ReadingStatusUpdateSchema,
-        service: Annotated[BookService, Depends(get_book_service)]):
-     return service.change_reading_status(schema=schema)
-        
-
 @router.post("/entries/{user_book_id}", response_model=schemas.EntryPublic, status_code=201)
 async def new_note(schema: schemas.EntryIngestSchema, service: Annotated[BookService, Depends(get_book_service)]):
    return await service.submit_entry(schema=schema) 
 
-# TODO Get all entries for a user book
-@router.post("user-books/{user_book_id}/entries")
-async def get_book_entries(user_book_id: uuid.UUID, service: Annotated[BookService, Depends(get_book_service)]):
+@router.post("/user_books/{user_book_id}/entries/{type}", response_model=list[schemas.EntryPublic], status_code=200)
+async def get_book_entries(user_book_id: uuid.UUID, type: str, service: Annotated[BookService, Depends(get_book_service)]):
+        return await service.get_entries_for_book(user_book_id=user_book_id, entry_type=type)
 
-
-
-# TODO get all entries for a user book
 
 # TODO update entry for a user book
-@router.patch
+@router.patch("/entries/{entry_id}/", response_model=schemas.EntryPublic, status_code=200)
+async def update_book_entry(entry_id: uuid.UUID, service: Annotated[BookService, Depends(get_book_service)]):
+        pass
 
 # TODO delete an entry from a user book

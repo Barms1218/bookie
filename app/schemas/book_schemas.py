@@ -1,3 +1,4 @@
+from .tag_schemas import TagIngestSchema
 from typing import ClassVar, TypedDict, Any
 from pydantic import BaseModel, Field, ConfigDict, model_validator, field_validator
 from datetime import datetime
@@ -64,14 +65,28 @@ class BookIngestSchema(BaseModel):
        return data
 
 class UserBookIngest(BaseModel):
+    """
+    The expected json request when a user is adding a book to their library
+    Args:
+        user_id: 
+        book_id: 
+        shelf_id:
+        reading_status:
+        tags: A schema requiring a user book id, a name, and a rating_value
+
+    Returns:
+    """
     user_id: uuid.UUID
     book_id: uuid.UUID
     shelf_id: uuid.UUID
     reading_status: str | None 
+    tags: list[BookTagIngestSchema] | None = Field(default_factory=list)
 
-class ReadingStatusUpdateSchema(BaseModel):
-    user_book_id: uuid.UUID
-    reading_status: str | None
+class BookTagDisplay(BaseModel):
+    id: uuid.UUID
+    name: str
+    rating_value: int | None
+
 
 # Data to be sent to the front end when the user wants to 
 # Update their book
@@ -90,7 +105,7 @@ class UserBookCover(BaseModel):
     thumbnail: str | None
     description: str | None
     authors: list[str] = Field(default_factory=list)
-    tags: list[BookTagSchema] | None
+    tags: list[BookTagDisplay] | None
 
 class BookSearchResult(BaseModel):
     id: uuid.UUID
@@ -98,17 +113,12 @@ class BookSearchResult(BaseModel):
     title: str
     authors: list[str] = Field(default_factory=list)
 
-class BookTagSchema(BaseModel):
-    user_book_id: uuid.UUID
+class BookTagIngestSchema(BaseModel):
     name: str
     rating_value: int | None
 
-    @field_validator("name")
-    @classmethod
-    def clean_up_name(cls, n: str) -> str:
-        clean_text = re.sub(r'[^a-zA-Z0-9\s]', '', n) 
-        return clean_text.strip().title()
+class BookTag(BaseModel):
+    user_book_id: uuid.UUID
+    tag_id: uuid.UUID
+    rating_value: int | None
 
-class BookEntries(BaseModel):
-    id: uuid.UUID
-    entries: list[EntryPublic]

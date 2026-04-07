@@ -11,10 +11,11 @@ class EntryRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db: AsyncSession = db
 
-    async def get_book_entries(self, user_book_id: uuid.UUID):
+    async def get_book_entries(self, user_book_id: uuid.UUID, type: str) -> list[models.Entry]:
         stmt = (
             select(models.Entry)
             .where(models.Entry.user_book_id == user_book_id)
+            .where(models.Entry.type == type)
             .options(
                 selectinload(models.Entry.entry_tags).selectinload(models.EntryTag.tag)
             )
@@ -22,7 +23,7 @@ class EntryRepository:
 
         result = await self.db.execute(stmt)
 
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def create_entry_tag(self, tags: list[schemas.EntryTagIngestSchema]) -> list[models.EntryTag]:
         """
@@ -43,11 +44,10 @@ class EntryRepository:
 
         return list(result.scalars().all())
 
-    async def get_e(self, search_schema: schemas.EntrySearchSchema) -> list[models.Entry]:
+    async def get_entry(self, search_schema: schemas.EntrySearchSchema) -> list[models.Entry]:
         stmt = select(models.Entry).where(models.Entry.user_book_id == search_schema.user_book_id)
 
-        if search_schema.type:
-            stmt = stmt.where(models.Entry.type == search_schema.type)
+        stmt = stmt.where(models.Entry.type == search_schema.type)
 
         if search_schema.tag_names:
             stmt = (stmt.join(models.EntryTag, models.Entry.id == models.EntryTag.entry_id)

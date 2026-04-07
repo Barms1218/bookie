@@ -1,4 +1,4 @@
-import re
+from .tag_schemas import TagIngestSchema
 from pydantic import BaseModel, Field,field_validator 
 from datetime import datetime
 import uuid
@@ -37,29 +37,7 @@ class EntryIngestSchema(BaseModel):
             raise ValueError("There's no content to submit")
         return c
 
-class TagIngestSchema(BaseModel):
-    """
 
-    Attributes: 
-        name: 
-        rating_value: 
-    """
-    name: str
-    rating_value: int | None
-
-    @field_validator("name")
-    @classmethod
-    def clean_up_name(cls, n: str) -> str:
-        """
-
-        Args:
-            n: 
-
-        Returns:
-            
-        """
-        clean_text = re.sub(r'[^a-zA-Z0-9\s]', '', n) 
-        return clean_text.strip().title()   
 
 class EntryPublic(BaseModel):
     """
@@ -72,7 +50,8 @@ class EntryPublic(BaseModel):
     """
     id: uuid.UUID
     content: str
-    page: int
+    page: int | None
+    chapter: str | None
     tags: list[EntryTag] | None = Field(default_factory=list)
 
 class EntryTag(BaseModel):
@@ -82,7 +61,8 @@ class EntryTag(BaseModel):
         entry_tag_id: The id of the entry that  tag is being added to
         name: The name of the tag
     """
-    entry_tag_id: uuid.UUID
+    entry_id: uuid.UUID
+    tag_id: uuid.UUID
     name: str
 
 class EntryTagIngestSchema(BaseModel):
@@ -107,7 +87,7 @@ class EntrySearchSchema(BaseModel):
         date: Tuple that can search in between the indices
     """
     user_book_id: uuid.UUID
-    type: str | None
+    type: str 
     content: str | None
     tag_names: list[str] | None
     dates: tuple[datetime, datetime] | None

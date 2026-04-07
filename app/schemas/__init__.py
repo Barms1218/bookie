@@ -1,11 +1,11 @@
 from .book_schemas import BookIngestSchema 
 from .book_schemas import UserBookIngest
-from .book_schemas import ReadingStatusUpdateSchema
 from .book_schemas import BookCover
 from .book_schemas import UserBookCover
 from .book_schemas import BookSearchResult
-from .book_schemas import BookTagSchema
-from .book_schemas import BookEntries
+from .book_schemas import BookTagIngestSchema
+from .book_schemas import BookTag
+from .book_schemas import BookTagDisplay
 from .entry_schemas import EntryIngestSchema
 from .entry_schemas import EntryPublic
 from .entry_schemas import EntrySearchSchema
@@ -16,12 +16,12 @@ from .tag_schemas import TagIngestSchema
 __all__ = [
     "BookIngestSchema",
     "UserBookIngest",
-    "ReadingStatusUpdateSchema",
     "BookCover",
     "UserBookCover",
     "BookSearchResult",
-    "BookTagSchema",
-    "BookEntries",
+    "BookTag",
+    "BookTagDisplay",
+    "BookTagIngestSchema",
     "EntryIngestSchema",
     "EntryPublic",
     "EntrySearchSchema",

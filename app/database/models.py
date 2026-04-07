@@ -126,12 +126,13 @@ class Entry(Base):
     ts_vector: Mapped[str] = mapped_column(
             TSVECTOR, 
             sa.Computed("to_tsvector('english', content)", persisted=True))
-    page_number: Mapped[int | None] = mapped_column(Integer)
+    page: Mapped[int | None] = mapped_column(Integer)
     created_on: Mapped[datetime] = mapped_column(
             DateTime(timezone=True), default=func.now())
     updated_on: Mapped[datetime] = mapped_column(
             DateTime(timezone=True), default=func.now(),
             onupdate=func.now())
+    chapter: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     is_private: Mapped[bool] = mapped_column(Boolean, default=True)
     type: Mapped[EntryType] = mapped_column(Enum(
         EntryType, name="entrytype"), nullable=False)
@@ -142,7 +143,9 @@ class Entry(Base):
 
     __table_args__: tuple[Any, ...] = (
             UniqueConstraint('user_book_id', 'created_on', name='entry_created_on'),
-            Index('ix_entries_tx_vector', 'ts_vector', postgresql_using='gin')
+            Index('ix_entries_tx_vector', 'ts_vector', postgresql_using='gin'),
+            Index('ix_entries_user_book_page', 'user_book_id', 'page'),
+            Index('ix_entries_user_book_chapter', 'user_book_id', 'chapter')
             )
 
 class Tag(Base):
