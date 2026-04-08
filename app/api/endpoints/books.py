@@ -38,9 +38,4 @@ async def get_book_entries(user_book_id: uuid.UUID, type: str, service: Annotate
         return await service.get_entries_for_book(user_book_id=user_book_id, entry_type=type)
 
 
-# TODO update entry for a user book
-@router.patch("/entries/{entry_id}/", response_model=schemas.EntryPublic, status_code=200)
-async def update_book_entry(entry_id: uuid.UUID, service: Annotated[BookService, Depends(get_book_service)]):
-        pass
-
 # TODO delete an entry from a user book

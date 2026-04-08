@@ -120,7 +120,7 @@ class Entry(Base):
     __tablename__: str = "entries"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    user_book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_books.id"))
+    user_book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_books.id", ondelete="CASCADE"))
 
     content: Mapped[str] = mapped_column(Text)
     ts_vector: Mapped[str] = mapped_column(
@@ -137,8 +137,8 @@ class Entry(Base):
     type: Mapped[EntryType] = mapped_column(Enum(
         EntryType, name="entrytype"), nullable=False)
 
-    user_book: Mapped["UserBook"] = Relationship(back_populates="entries")
-    entry_tags: Mapped[list["EntryTag"]] = Relationship(back_populates="entry")
+    user_book: Mapped["UserBook"] = Relationship(back_populates="entries", cascade="all, delete-orphan")
+    entry_tags: Mapped[list["EntryTag"]] = Relationship(back_populates="entry", cascade="all, delete-orphan" )
     tags: AssociationProxy[list["Tag"]] = association_proxy("entry_tags", "tags")
 
     __table_args__: tuple[Any, ...] = (
