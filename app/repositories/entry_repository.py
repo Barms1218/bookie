@@ -1,4 +1,4 @@
-from sqlalchemy import select, or_, func, update 
+from sqlalchemy import select, or_, func, update, delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import contains_eager, selectinload 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,7 +25,7 @@ class EntryRepository:
 
         return list(result.scalars().all())
 
-    async def create_entry_tag(self, tags: list[schemas.EntryTagIngestSchema]) -> list[models.EntryTag]:
+    async def create_entry_tag(self, tags: list[schemas.EntryTag]) -> list[models.EntryTag]:
         """
 
         Args:
@@ -66,17 +66,36 @@ class EntryRepository:
         return list(results.scalars().all())
 
     async def get_tags_for_entries(self, entries: list[schemas.EntryPublic]):
-        entry_data = [
-                {
-                    "id": e.id
-                    }
-                for e in entries
-                ]
-                    
-                
         stmt = (select(
             models.EntryTag)
                 .where(models.EntryTag.entry_id.in_([e.id for e in entries]))
                 .options(selectinload(models.EntryTag.tag)
                          ).group_by(models.EntryTag.entry_id)
                 )
+
+        result = await self.db.execute(stmt)
+
+        rows = result.scalars().all()
+            
+        mapped_tags: dict[uuid.UUID, list[schemas.EntryTag]] = {}
+        for row in rows:
+            if row.entry_id not in mapped_tags:
+                mapped_tags[row.entry_id] = []
+            mapped_tags[row.entry_id].append(schemas.EntryTag.model_validate(row.tag))
+                
+        return mapped_tags
+        
+
+    async def delete_book_entries(self, entry_ids: list[uuid.UUID]) -> None:
+        stmt = delete(models.Entry).where(models.Entry.id.in_(entry_ids))
+
+        result = await self.db.execute(stmt)
+
+        return result.scalar_one_or_none()
+
+    async def delete_entry_tags(self, entry_id: uuid.UUID) -> None:
+        stmt = delete(models.EntryTag).where(models.EntryTag.entry_id == entry_id)
+
+        result = await self.db.execute(stmt)
+
+        return result.scalar_one_or_none()

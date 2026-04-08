@@ -1,9 +1,8 @@
+from operator import index
 from sqlalchemy import select, or_, func, update 
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import contains_eager, selectinload 
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime
-import uuid
 import app.schemas as schemas
 import app.database.models as models
 
@@ -16,7 +15,7 @@ class TagRepository:
 	def __init__(self, db: AsyncSession):
 		self.db: AsyncSession = db
 	
-	async def get_or_create_tags(self, names: list[str]) -> list[models.Tag]:
+	async def upsert_tags(self, new_tag: schemas.TagIngestSchema) -> models.Tag:
 		"""
 		Checks if the tag names are already the database. Returns those if so,
 		otherwise, inserts.
@@ -26,21 +25,20 @@ class TagRepository:
 		Returns: rows from the tags table with a name and its associated id
 		    
 		"""
-		existing_stmt = select(models.Tag).where(models.Tag.name.in_(names))
-		result = await self.db.execute(existing_stmt)
-		existing_tags = list(result.scalars().all())
+		stmt = (insert(models.Tag).values(new_tag.model_dump()))
 
-		existing_names = [t.name for t in existing_tags]
-		missing_names = [name for name in names if name not in existing_names]
+		upsert_stmt = stmt.on_conflict_do_update(
+				index_elements=['name'],
+				set_={"name": stmt.excluded.name}
+				)
 
+		result = await self.db.execute(upsert_stmt)
 
-		new_tags = []
-		if missing_names:
-			insert_stmt = (
-					insert(models.Tag)
-					.values([{"name": name} for name in missing_names])
-					)
-			insert_result = await self.db.execute(insert_stmt)
-			new_tags = list(insert_result.scalars().all())
+		return result.scalar_one()
 
-		return existing_tags + new_tags
+	async def get_all_tags(self) -> list[models.Tag]:
+		stmt = select(models.Tag)
+
+		result = await self.db.execute(stmt)
+
+		return list(result.scalars().all())

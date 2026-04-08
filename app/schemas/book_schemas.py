@@ -113,7 +113,8 @@ class BookSearchResult(BaseModel):
     authors: list[str] = Field(default_factory=list)
 
 class BookTagIngestSchema(BaseModel):
-    name: str
+    user_book_id: uuid.UUID
+    tag_id: uuid.UUID
     rating_value: int | None
 
 class BookTag(BaseModel):

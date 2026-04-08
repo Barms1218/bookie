@@ -1,6 +1,6 @@
 from typing import Annotated
 from app.dependencies import get_book_service
-from fastapi import APIRouter, Depends, HTTPException  
+from fastapi import APIRouter, Depends, HTTPException, Query
 from app.services.book_services import BookService
 import uuid
 import app.schemas as schemas
@@ -39,3 +39,8 @@ async def get_book_entries(user_book_id: uuid.UUID, type: str, service: Annotate
 
 
 # TODO delete an entry from a user book
+@router.delete("/entries/delete", status_code=200)
+async def delete_book_entries(
+        ids: list[uuid.UUID],
+        service: Annotated[BookService, Depends(get_book_service)]):
+    return service.delete_entries(ids=ids)

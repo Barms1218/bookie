@@ -156,15 +156,9 @@ class BookRepository:
     async def upsert_book_tags(
             self,
             user_book_id: uuid.UUID,
-            schemas: list[schemas.BookTag]):
-        payload = [
-                {
-                    "user_book_id": s.user_book_id,
-                    "tag_id": s.tag_id,
-                    "rating_value": s.rating_value
-                    }
-                for s in schemas
-                ]
+            schemas: list[schemas.BookTagIngestSchema]):
+        payload = [s.model_dump() for s in schemas]
+
         stmt = insert(models.BookTag).values(payload)
 
         upsert_stmt = stmt.on_conflict_do_update(
@@ -204,7 +198,6 @@ class BookRepository:
                 set_={
                     models.Entry.content: stmt.excluded.content,
                     models.Entry.page: stmt.excluded.page,
-                    models.Entry.updated_on: func.now(),
                     models.Entry.is_private: stmt.excluded.is_private
                     }
                 ).returning(models.Entry)
@@ -212,9 +205,6 @@ class BookRepository:
         result = await self.db.execute(upsert_stmt)
 
         return result.scalar_one()
-
-    async def get_book_entries(self, user_book_id: uuid.UUID):
-        pass
 
     async def delete_book_tags(self, user_book_id) ->  None:
         stmt = (delete(models.BookTag)

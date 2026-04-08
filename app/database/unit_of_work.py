@@ -13,6 +13,9 @@ class UnitOfWork:
     async def commit(self):
         await self.db.commit()
 
+    async def close(self):
+        await self.db.close()
+
     async def rollback(self):
         await self.db.rollback()
 
@@ -20,5 +23,10 @@ class UnitOfWork:
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if exc_type:
-            await self.rollback()
+        try:
+            if exc_type:
+                await self.rollback()
+            else:
+                await self.commit()
+        finally:
+            await self.close()

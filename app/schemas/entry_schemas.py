@@ -2,8 +2,6 @@ from pydantic import BaseModel, Field,field_validator
 from datetime import datetime
 import uuid
 
-class TagIngestSchema(BaseModel):
-    name: str
 class EntryIngestSchema(BaseModel):
     """
 
@@ -18,7 +16,7 @@ class EntryIngestSchema(BaseModel):
     content: str
     page: int | None = None
     is_private: bool | None = True
-    tags: list[TagIngestSchema] | None = Field(default_factory=list) 
+    tags: list[EntryTagIngestSchema] | None = Field(default_factory=list) 
 
     @field_validator("content")
     @classmethod
@@ -59,8 +57,9 @@ class EntryTag(BaseModel):
     """
 
     Attributes: 
-        entry_tag_id: The id of the entry that  tag is being added to
-        name: The name of the tag
+        entry_id: The id for the entry
+        tag_id: the id for the tag
+        name: the name that will be upserted into the tags table
     """
     entry_id: uuid.UUID
     tag_id: uuid.UUID
@@ -71,7 +70,6 @@ class EntryTagIngestSchema(BaseModel):
 
     Attributes: 
         entry_id: The id for the entry
-        tag_id: the id for the tag
         name: the name that will be upserted into the tags table
     """
     entry_id: uuid.UUID

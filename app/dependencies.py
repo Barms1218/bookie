@@ -46,4 +46,11 @@ def get_user_service(
     client = request.app.state.http_client
     return services.UserService(client=client, uow=uow)
 
+def get_tag_service(
+        request: Request,
+        uow: UnitOfWork = Depends(get_unit_of_work)
+        ) -> services.TagService:
+    client = request.app.state.http_client
+    return services.TagService(client=client, uow=uow)
+
 
