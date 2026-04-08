@@ -1,20 +1,22 @@
 import pytest
 from unittest.mock import AsyncMock
 from app.dependencies import UnitOfWork
-from app.services.entry_service import EntryService 
+import app.schemas as schemas
+import app.services as services
 
-pytest.fixture
+@pytest.fixture
 def mock_uow():
     """Provides a mocked UnitOfWork for service testing."""
     uow = AsyncMock(spec=UnitOfWork)
+    uow.__aenter__ = AsyncMock(return_value=uow)
+    uow.__aexit__ = AsyncMock(return_value=False)
     # Ensure nested repositories are also mocked
     uow.books = AsyncMock()
-    uow.journals = AsyncMock()
-    uow.quotes = AsyncMock()
+    uow.tags = AsyncMock()
+    uow.users = AsyncMock()
     return uow
 
 @pytest.fixture
-def journal_service(mock_uow):
-    """Provides a JournalService pre-configured with a mock UOW."""
+def book_service(mock_uow):
     mock_client = AsyncMock()
-    return EntryService(client=mock_client, uow=mock_uow)
+    return services.BookService(api_key="", client=mock_client, uow=mock_uow)

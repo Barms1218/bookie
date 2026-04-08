@@ -120,47 +120,65 @@ class BookService:
             
         """
         async with self.uow:
-            # 1. Handle Tags
-            tag_names = [t.name for t in schema.tags] if schema.tags else []
-            tags_from_db = await self.uow.tags.get_or_create_tags(names=tag_names)
+                # 2. Save the UserBook
+                user_book = await self.uow.books.save_user_book(book_schema=schema)
+
+                # 5. Get Book
+                book = await self.uow.books.get_book_with_id(user_book.book_id)
+                if not book:
+                    raise HTTPException(404, "Book not found")
+
+                new_tags: list[schemas.BookTagDisplay] = []
+                if schema.tags:
+                    new_tags = await self.sync_book_tags(user_book_id=user_book.id, new_book_tags=schema.tags)
+                else:
+                    new_tags = await self.sync_book_tags(user_book_id=user_book.id, new_book_tags=[])
+
+                new_book = schemas.UserBookCover(
+                    user_book_id=user_book.id,
+                    title=book.title,
+                    thumbnail=book.meta_data.get("Thumbnail"),
+                    description=book.description,
+                    authors=book.authors,
+                    tags= new_tags
+                )
+
+                return new_book
+
+    async def sync_book_tags(
+            self, 
+            user_book_id: uuid.UUID,
+            new_book_tags: list[schemas.BookTagIngestSchema]) -> list[schemas.BookTagDisplay]:
+        async with self.uow:
+            await self.uow.books.delete_book_tags(user_book_id=user_book_id)
+
+            tags = await self.uow.tags.get_or_create_tags(names=[s.name for s in new_book_tags])
+            tag_lookup = {t.name: t.id for t in tags}
             
-            # Create a lookup: {"History": UUID-123, "Fiction": UUID-456}
-            tag_lookup = {t.id: t.name for t in tags_from_db}
-        
-            # 2. Save the UserBook
-            user_book = await self.uow.books.save_user_book(book_schema=schema)
-        
-            # 3. Build the Upsert List
-            # We loop over the schema.tags because that's where the 'rating_value' is!
-
-        
-            # 4. Perform the Upsert
-            # Assuming your upsert function takes a list of schemas
-            inserted_tags = await self.uow.books.upsert_book_tags(schemas=schema.tags)
-
-            book_tags: list[schemas.BookTagDisplay] = [
-                    schemas.BookTagDisplay(
-                        id=t.id,
-                        name=tag_lookup[t.id],
+            db_book_tags: list[schemas.BookTag] = [
+                    schemas.BookTag(
+                        user_book_id=user_book_id,
+                        tag_id=tag_lookup[t.name],
                         rating_value=t.rating_value
-
                         )
-                    for t in inserted_tags
+                    for t in new_book_tags 
                     ]
-        
-            # 5. Get Book
-            book = await self.uow.books.get_book_with_id(user_book.book_id)
-            if not book:
-                raise HTTPException(404, "Book not found")
-          
-            return schemas.UserBookCover(
-                   user_book_id=user_book.id,
-                   title=book.title,
-                   thumbnail=book.meta_data.get("Thumbnail"),
-                   description=book.description,
-                   authors=book.authors,
-                   tags=book_tags
-                    )
+
+            inserted_tags = await self.uow.books.upsert_book_tags(user_book_id=user_book_id, schemas=db_book_tags)
+
+            return [
+                    schemas.BookTagDisplay(
+                        id=i.id,
+                        name=i.name,
+                        rating_value=i.rating_value
+                        )
+                    for i in inserted_tags
+                    ]
+
+
+
+
+
 
     async def submit_entry(self, schema: schemas.EntryIngestSchema) -> schemas.EntryPublic:
         """
@@ -202,6 +220,15 @@ class BookService:
             return entry 
 
     async def get_entries_for_book(self, user_book_id: uuid.UUID, entry_type: str) -> list[schemas.EntryPublic] | None:
+        """
+
+        Args:
+            user_book_id: 
+            entry_type: 
+
+        Returns:
+            
+        """
         entries = await self.uow.entries.get_book_entries(user_book_id=user_book_id, type=entry_type)
         entry_schemas: list[schemas.EntryPublic] = [
                 schemas.EntryPublic(
@@ -222,3 +249,24 @@ class BookService:
                 ]
 
         return entry_schemas
+
+    # TODO Create repository function to return a list of public entry tags for each entry
+    async def get_entries_with_params(self, search_params: schemas.EntrySearchSchema) -> list[schemas.EntryPublic]:
+        result = await self.uow.entries.get_entries_with_params(search_schema=search_params)
+        
+        entries: list[schemas.EntryPublic] = [
+                schemas.EntryPublic(
+                    id=r.id,
+                    content=r.content,
+                    page=r.page,
+                    chapter=r.chapter,
+                    tags=r.tags
+                    )
+                for r in result
+                ]
+
+
+        return entries 
+
+                 
+

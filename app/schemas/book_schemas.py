@@ -1,4 +1,3 @@
-from .tag_schemas import TagIngestSchema
 from typing import ClassVar, TypedDict, Any
 from pydantic import BaseModel, Field, ConfigDict, model_validator, field_validator
 from datetime import datetime

@@ -44,7 +44,7 @@ class EntryRepository:
 
         return list(result.scalars().all())
 
-    async def get_entry(self, search_schema: schemas.EntrySearchSchema) -> list[models.Entry]:
+    async def get_entries_with_params(self, search_schema: schemas.EntrySearchSchema) -> list[models.Entry]:
         stmt = select(models.Entry).where(models.Entry.user_book_id == search_schema.user_book_id)
 
         stmt = stmt.where(models.Entry.type == search_schema.type)

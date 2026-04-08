@@ -1,4 +1,4 @@
-from sqlalchemy import Row, select, or_, func, update
+from sqlalchemy import Row, select, or_, func, update, delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import contains_eager, selectinload 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -153,7 +153,10 @@ class BookRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one()
 
-    async def upsert_book_tags(self, schemas: list[schemas.BookTag]) -> list[models.BookTag]:
+    async def upsert_book_tags(
+            self,
+            user_book_id: uuid.UUID,
+            schemas: list[schemas.BookTag]):
         payload = [
                 {
                     "user_book_id": s.user_book_id,
@@ -173,8 +176,17 @@ class BookRepository:
 
         result = await self.db.execute(upsert_stmt)
 
-        return list(result.scalars().all())
+        return await self.get_book_tags_with_name(user_book_id=user_book_id) 
 
+    async def get_book_tags_with_name(self, user_book_id: uuid.UUID):
+        stmt = (select(models.BookTag.id, models.Tag.name, models.BookTag.rating_value)
+                .join(models.Tag, models.BookTag.tag_id == models.Tag.id)
+                .where(models.BookTag.user_book_id == user_book_id)
+                )
+
+        result = await self.db.execute(stmt)
+
+        return list(result.all())
 
     async def create_book_entry(self, schema: schemas.EntryIngestSchema):
         """
@@ -204,3 +216,10 @@ class BookRepository:
     async def get_book_entries(self, user_book_id: uuid.UUID):
         pass
 
+    async def delete_book_tags(self, user_book_id) ->  None:
+        stmt = (delete(models.BookTag)
+                .where(models.BookTag.user_book_id == user_book_id))
+
+        result = await self.db.execute(stmt)
+
+        return result.scalar_one_or_none()

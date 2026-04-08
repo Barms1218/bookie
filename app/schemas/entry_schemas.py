@@ -1,8 +1,9 @@
-from .tag_schemas import TagIngestSchema
 from pydantic import BaseModel, Field,field_validator 
 from datetime import datetime
 import uuid
 
+class TagIngestSchema(BaseModel):
+    name: str
 class EntryIngestSchema(BaseModel):
     """
 
