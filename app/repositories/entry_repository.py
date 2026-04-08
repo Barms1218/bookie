@@ -65,3 +65,18 @@ class EntryRepository:
 
         return list(results.scalars().all())
 
+    async def get_tags_for_entries(self, entries: list[schemas.EntryPublic]):
+        entry_data = [
+                {
+                    "id": e.id
+                    }
+                for e in entries
+                ]
+                    
+                
+        stmt = (select(
+            models.EntryTag)
+                .where(models.EntryTag.entry_id.in_([e.id for e in entries]))
+                .options(selectinload(models.EntryTag.tag)
+                         ).group_by(models.EntryTag.entry_id)
+                )

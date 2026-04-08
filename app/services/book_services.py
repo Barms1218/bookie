@@ -252,21 +252,25 @@ class BookService:
 
     # TODO Create repository function to return a list of public entry tags for each entry
     async def get_entries_with_params(self, search_params: schemas.EntrySearchSchema) -> list[schemas.EntryPublic]:
-        result = await self.uow.entries.get_entries_with_params(search_schema=search_params)
+        async with self.uow:
+            result = await self.uow.entries.get_entries_with_params(search_schema=search_params)
         
-        entries: list[schemas.EntryPublic] = [
-                schemas.EntryPublic(
-                    id=r.id,
-                    content=r.content,
-                    page=r.page,
-                    chapter=r.chapter,
-                    tags=r.tags
-                    )
-                for r in result
-                ]
+            entries: list[schemas.EntryPublic] = [
+                    schemas.EntryPublic(
+                        id=r.id,
+                        content=r.content,
+                        page=r.page,
+                        chapter=r.chapter,
+                        tags=None
+                        )
+                    for r in result
+                    ]
+            entry_tags = await self.uow.entries.get_tags_for_entries(entries=entries)
 
+            for e in entries:
+                e.tags = entry_tags.get(e.id, []) 
 
-        return entries 
+            return entries
 
                  
 
