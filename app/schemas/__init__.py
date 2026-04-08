@@ -13,6 +13,7 @@ from .entry_schemas import EntryTagIngestSchema
 from .entry_schemas import EntryTag
 from .tag_schemas import TagIngestSchema
 from .tag_schemas import PublicTag
+from .tag_schemas import AllTagsResponse
 
 __all__ = [
     "BookIngestSchema",
@@ -29,5 +30,6 @@ __all__ = [
     "EntryTag",
     "EntryTagIngestSchema",
     "TagIngestSchema",
-    "PublicTag"
+    "PublicTag",
+    "AllTagsResponse",
 ]

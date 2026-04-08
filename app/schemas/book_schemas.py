@@ -87,8 +87,6 @@ class BookTagDisplay(BaseModel):
     rating_value: int | None
 
 
-# Data to be sent to the front end when the user wants to 
-# Update their book
 class BookCover(BaseModel):
     book_id: uuid.UUID
     title: str
@@ -98,6 +96,8 @@ class BookCover(BaseModel):
     authors: list[str] = Field(default_factory=list)
     total_pages: int | None 
 
+# TODO There needs to be a model to hold user book appearance data
+# such as color, height, width, etc.
 class UserBookCover(BaseModel):
     user_book_id: uuid.UUID
     title: str

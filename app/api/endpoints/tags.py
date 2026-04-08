@@ -10,3 +10,7 @@ router = APIRouter(prefix="/tags", tags=['tags'])
 @router.post("/create/{name}/{type}", response_model=schemas.PublicTag, status_code=201)
 async def create_tag(name: str, type: str, service: Annotated[TagService, Depends(get_tag_service)]):
     return service.create_new_tags(new_tag=schemas.TagIngestSchema(name=name, type=type))
+
+@router.get("/all", response_model=list[schemas.AllTagsResponse], status_code=200)
+async def get_tags(service: Annotated[TagService, Depends(get_tag_service)]):
+    return await service.get_tags()

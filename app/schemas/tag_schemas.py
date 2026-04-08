@@ -38,4 +38,7 @@ class TagIngestSchema(BaseModel):
 class PublicTag(BaseModel):
     id: uuid.UUID
     name: str
+
+class AllTagsResponse(BaseModel):
     type: str
+    tags: list[PublicTag]

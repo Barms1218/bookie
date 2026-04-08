@@ -36,9 +36,9 @@ class TagRepository:
 
 		return result.scalar_one()
 
-	async def get_all_tags(self) -> list[models.Tag]:
-		stmt = select(models.Tag)
+	async def get_all_tags(self):
+		stmt = select(models.Tag).group_by(models.Tag.type)
 
 		result = await self.db.execute(stmt)
 
-		return list(result.scalars().all())
+		return result.scalars().all()
