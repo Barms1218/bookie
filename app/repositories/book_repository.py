@@ -33,6 +33,35 @@ class BookRepository:
         return  list(result.all()) # Extract the Book models from the rows
 
         return books
+
+    async def search_user_books(self, id: uuid.UUID, term: str) -> list[Row[tuple[models.UserBook, models.Book]]]:
+        banned_terms = ["box", "set", "collection", "bundle", "complete series"]
+    
+        # 2. Format them for Postgres (e.g., "-box -set -collection")
+        exclusion_string = " " + " ".join([f"-{word}" for word in banned_terms])
+    
+        # 3. Combine with the user's search
+        search_term = term + exclusion_string
+        
+        ts_query = func.websearch_to_tsquery('english', search_term)
+        stmt = (
+                select(models.UserBook, models.Book)
+                .join(models.UserBook.book)
+                .where(models.UserBook.user_id == id,
+                       or_(
+                           models.UserBook.search_vector.bool_op("@@")(ts_query),
+                           models.Book.ts_vector.bool_op("@@")(ts_query)
+                           )
+                )
+                .order_by(
+                    func.ts_rank(models.UserBook.search_vector, ts_query).desc()
+                    )
+                )
+
+        result = await self.db.execute(stmt)
+
+        return list(result.all())
+
         
     async def build_user_profile(self, id: uuid.UUID):
         stmt =(
@@ -211,4 +240,3 @@ class BookRepository:
 
         result = await self.db.execute(stmt)
 
-        return result.scalar_one_or_none()

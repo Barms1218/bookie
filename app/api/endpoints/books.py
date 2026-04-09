@@ -7,13 +7,14 @@ import app.schemas as schemas
 
 router = APIRouter(prefix="/books", tags=["books"])
 
-@router.get("/search/{term}", 
+@router.get("/search/{user_id/{term}", 
             response_model=list[schemas.BookSearchResult],
             status_code=200)
 async def search_books(
+                user_id: uuid.UUID,
                 term: str,
                 service: Annotated[BookService, Depends(get_book_service)]):
-    return await service.get_book_with_term(term)
+    return await service.get_book_with_term(id=user_id, term=term)
 
 
 @router.post("/view/{book_id}/{user_id}", status_code=200)

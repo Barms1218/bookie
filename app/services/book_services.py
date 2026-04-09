@@ -24,7 +24,7 @@ class BookService:
 #region books
     #TODO One day work on a feature that will get a total number of results between database
     # And API
-    async def get_book_with_term(self, term: str) -> list[schemas.BookSearchResult] | None:
+    async def get_book_with_term(self, id: uuid.UUID, term: str) -> list[schemas.BookSearchResult] | None:
         """
 
         Args:
@@ -37,11 +37,27 @@ class BookService:
             HTTPException: 
         """
         async with self.uow:
-            db_books = await self.uow.books.search_books_local(term) 
+            seen_book_ids: set[uuid.UUID] = set()
+            high_match: list[schemas.BookSearchResult] = []
+            low_match: list[schemas.BookSearchResult] = []
+            results = []
+            user_books = await self.uow.books.search_user_books(id=id, term=term)
+            
+            for row in user_books:
+                book_schema: schemas.BookSearchResult = schemas.BookSearchResult(
+                        id=row.Book.id,
+                        thumbnail=row.Book.meta_data.get("small_thumbnail"),
+                        title=row.UserBook.custom_title,
+                        authors=row.Book.authors
+                        )
+                high_match.append(book_schema)
+                seen_book_ids.add(row.Book.id)
 
-            high_match = []
-            low_match = []
+            db_books = await self.uow.books.search_books_local(term) 
             for row in db_books:
+                if row.Book.id in seen_book_ids:
+                    continue
+
                 book_schema = schemas.BookSearchResult(
                         id=row.Book.id,
                         thumbnail=row.Book.meta_data.get("small_thumbnail"),
@@ -113,14 +129,19 @@ class BookService:
         async with self.uow:
             result = await self.uow.books.get_user_book(user_id=user_id, book_id=book_id)
             if result:
-                    return schemas.UserBookCover(
-                    user_book_id=result.user_book.id,
-                    title=result.book.title,
-                    thumbnail=result.book.meta_data.get("thumbnail"),
-                    description=result.book.description,
-                    authors=result.book.authors,
-                    tags=result.book_tags
-                    ) 
+                book_title = (
+                        result.user_book.custom_title 
+                              if result.user_book.custom_title 
+                              else result.book.title
+                              )
+                return schemas.UserBookCover(
+                user_book_id=result.user_book.id,
+                title=book_title,
+                thumbnail=result.book.meta_data.get("thumbnail"),
+                description=result.book.description,
+                authors=result.book.authors,
+                tags=result.book_tags
+                ) 
             book = await self.uow.books.get_book_with_id(id=book_id)
             if not book:
                 raise HTTPException(404, "No Book Found")
@@ -153,10 +174,9 @@ class BookService:
                 new_tags: list[schemas.BookTagDisplay] = []
                 if schema.tags:
                     new_tags = await self.sync_book_tags(user_book_id=user_book.id, new_book_tags=schema.tags)
-
                 new_book = schemas.UserBookCover(
                     user_book_id=user_book.id,
-                    title=book.title,
+                    title=user_book.custom_title if user_book.custom_title else book.title,
                     thumbnail=book.meta_data.get("thumbnail"),
                     description=book.description,
                     authors=book.authors,

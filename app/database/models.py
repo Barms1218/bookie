@@ -2,6 +2,7 @@ from typing import Any
 from sqlalchemy import CheckConstraint, Column, Enum, ForeignKey, String, Text, Integer, Index, Boolean, UniqueConstraint, func, Float, DateTime, Computed
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, ARRAY
+from sqlalchemy.dialects.postgresql.ext import to_tsvector
 from sqlalchemy.orm import Mapped, mapped_column, Relationship
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.ext.associationproxy import AssociationProxy, association_proxy
@@ -34,7 +35,9 @@ class User(Base):
     date_joined: Mapped[datetime] = mapped_column(
             DateTime(timezone=True), server_default=func.now()) 
     updated_at: Mapped[datetime] = mapped_column(
-            DateTime(timezone=True), server_default=func.now(),
+            DateTime(timezone=True),
+            server_default=func.now(),
+            default=func.now(),
             onupdate=func.now())
 
     # --- AUTH FIELDS (All Nullable) ---
@@ -93,12 +96,19 @@ class UserBook(Base):
     # Foreign Keys
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
-    shelf_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("shelves.id"))
+    shelf_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("shelves.id"), nullable=True)
     custom_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(
             DateTime(timezone=True), default=None, nullable=True) 
     reading_status: Mapped[ReadingStatus] = mapped_column(Enum(ReadingStatus, name="reading_status"), nullable=False)
     overall_rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    search_vector: Mapped[str] = mapped_column(
+            TSVECTOR,
+            sa.Computed("to_tsvector('english', custom_title)",
+                        persisted=True)
+            )
+
+
     # Relationships
     user: Mapped["User"] = Relationship(back_populates="user_books")
     entries: Mapped[list["Entry"] | None] = Relationship(back_populates="user_book", cascade="all, delete-orphan")

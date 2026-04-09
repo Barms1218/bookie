@@ -22,7 +22,7 @@ class BookIngestSchema(BaseModel):
 
     title: str 
     isbn: str | None = None
-    authors: list[str] | str= Field(default_factory=list) # Make sure every model has its own list
+    authors: list[str] | str = "" # Make sure every model has its own list
     page_count: int = Field(default=0, alias="pageCount")
     description: str | None = None 
     
@@ -31,9 +31,13 @@ class BookIngestSchema(BaseModel):
     @field_validator("authors", mode="before")
     @classmethod
     def flatten_authors(cls, v):
-       if isinstance(v, list):
-           return ", ".join(v)
-       return v or ""
+        if isinstance(v, list):
+            # Join with a comma if it's a list, or return empty string if list is empty
+            return ", ".join(v) if v else ""
+        if v is None:
+            return ""
+        # Ensure it's a string just in case it's some other weird type
+        return str(v)
 
     @model_validator(mode='before')
     @classmethod
@@ -84,11 +88,17 @@ class UserBookIngest(BaseModel):
 
     Returns:
     """
+    custom_title: str = Field(alias="title")
     user_id: uuid.UUID
     book_id: uuid.UUID
-    shelf_id: uuid.UUID
+    shelf_id: uuid.UUID | None = None
     reading_status: str | None 
     tags: list[BookTagIngestSchema] | None = Field(default_factory=list)
+
+    @field_validator("custom_title")
+    @classmethod
+    def clean_title(cls, t: str) -> str:
+        return t.strip().title()
 
 class BookTagDisplay(BaseModel):
     id: uuid.UUID
@@ -102,7 +112,7 @@ class BookCover(BaseModel):
     thumbnail: str | None 
     description: str | None 
     categories: list[str] | None = Field(default_factory=list)
-    authors: list[str] = Field(default_factory=list)
+    authors: str
     total_pages: int | None 
 
 # TODO There needs to be a model to hold user book appearance data
@@ -112,7 +122,7 @@ class UserBookCover(BaseModel):
     title: str
     thumbnail: str | None
     description: str | None
-    authors: list[str] = Field(default_factory=list)
+    authors: str
     tags: list[BookTagDisplay] | None
 
 class BookSearchResult(BaseModel):
