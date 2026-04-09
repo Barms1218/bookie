@@ -1,6 +1,7 @@
 from sqlalchemy import Row, select, or_, func, update, delete
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import contains_eager, selectinload 
+from sqlalchemy.dialects.postgresql.ext import websearch_to_tsquery
+from sqlalchemy.orm import contains_eager, joinedload, selectinload 
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 from typing import Any
@@ -16,22 +17,9 @@ class BookRepository:
         search_term = f"%{term}%"
         stmt = (
                 select(models.Book)
-                .where(
-                    or_(
-                        # 1. Case-insensitive Title search
-                        models.Book.title.ilike(search_term),
-                    
-                        # 2. Check if the Authors list (Postgres Array) contains the term
-                        # This is faster than a string search for lists
-                        models.Book.authors.contains([search_term]), 
-                    
-                        models.Book.ts_vector.match(search_term),
-                    )
-                )
-                .where(models.Book.title.not_ilike("%Box Set%"))
-                .where(models.Book.title.not_ilike("%Full Series%"))
-                        
-                .limit(20) # Good practice to avoid dumping 10k rows into memory
+                .where(models.Book.ts_vector.bool_op("@@")(func.websearch_to_tsquery('english', search_term)))
+                .limit(20)
+                .order_by(func.ts_rank(models.Book.ts_vector, func.websearch_to_tsquery('english', search_term)))
         )
         result = await self.db.execute(stmt) # Get the rows object from sql
         
@@ -49,6 +37,20 @@ class BookRepository:
 
         return books
         
+    async def build_user_profile(self, id: uuid.UUID):
+        stmt =(
+                select(models.UserBook)
+                .join(models.UserBook.book)
+                .where(models.UserBook.user_id == id,
+                       models.UserBook.overall_rating >= 4)
+                .options(
+                    joinedload(models.UserBook.book)
+                    .selectinload(models.UserBook.book_tags)
+                    .selectinload(models.BookTag.tag)
+                    )
+                .limit(10)
+                ).order_by(models.UserBook.overall_rating.desc()
+        )
 
     # Upsert function. If there's a conflict on the isbn update the title
     async def save_book_to_db(self, book_schema: schemas.BookIngestSchema) -> models.Book:

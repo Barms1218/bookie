@@ -54,21 +54,27 @@ class Book(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     isbn: Mapped[str | None] = mapped_column(String(13), index=True, unique=True)
     title: Mapped[str] = mapped_column(String(255), index=True)
-    authors: Mapped[list[str]] = mapped_column(ARRAY(String)) 
+    authors: Mapped[list[str]] = mapped_column(Text, index=True) 
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     ts_vector: Mapped[str] = mapped_column(
-            TSVECTOR, 
-            sa.Computed("to_tsvector('english', coalesce(description, ''))", persisted=True))
+        TSVECTOR, 
+        sa.Computed(
+            "setweight(to_tsvector('english'::regconfig, coalesce(title, '')), 'A') || "
+            "setweight(to_tsvector('english'::regconfig, coalesce(authors::text, '')), 'B') || "
+            "setweight(to_tsvector('english'::regconfig, coalesce(description, '')), 'C')",
+            persisted=True
+        )
+    )
     updated_at: Mapped[datetime] = mapped_column(
-            DateTime(timezone=True), server_default=func.now(),
-            onupdate=func.now())
+                DateTime(timezone=True), server_default=func.now(),
+                onupdate=func.now())
 
     meta_data: Mapped[dict[str, Any]] = mapped_column(JSONB)
 
+
     __table_args__: tuple[Any, ...] = (
-            Index('ix_book_description', 'ts_vector', postgresql_using='gin'),
-            Index('ix_book_authors', 'authors', postgresql_using='gin'),
+            Index('ix_tx_vector', 'ts_vector', postgresql_using='gin'),
             )
 
 class UserBook(Base):
@@ -84,6 +90,7 @@ class UserBook(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(
             DateTime(timezone=True), default=None, nullable=True) 
     reading_status: Mapped[ReadingStatus] = mapped_column(Enum(ReadingStatus, name="reading_status"), nullable=False)
+    overall_rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Relationships
     user: Mapped["User"] = Relationship(back_populates="user_books")
     entries: Mapped[list["Entry"] | None] = Relationship(back_populates="user_book", cascade="all, delete-orphan")
