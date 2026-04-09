@@ -117,8 +117,12 @@ class BookTagIngestSchema(BaseModel):
     tag_id: uuid.UUID
     rating_value: int | None
 
+class BookRecommendSchema(BaseModel):
+    title: str
+    overall_rating: int
+    book_tags: list[BookTag]
+
 class BookTag(BaseModel):
-    user_book_id: uuid.UUID
-    tag_id: uuid.UUID
+    name: str
     rating_value: int | None
 
