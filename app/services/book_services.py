@@ -36,30 +36,62 @@ class BookService:
         Raises:
             HTTPException: 
         """
-        valid_books = []
         async with self.uow:
-                db_books = await self.uow.books.search_books_local(term) 
-                if db_books:
-                    return db_books
-                params = {"q": term, "key": self.api_key}
-                response = await self.client.get(self.base_url, params=params)
-                if not response.is_success: 
-                    raise HTTPException(status_code=502, detail="External API Failure")
-                raw_data = response.json()
-                # Google returns everything in one big items dictionary
-                items = raw_data.get("items", [])
-                for item in items:
-                    volume_info = item.get("volumeInfo", {})
-                    try:
-                        book = schemas.BookIngestSchema(**volume_info)
-                        saved_book = await self.uow.books.save_book_to_db(book)
-                        valid_books.append(saved_book)
-                    except ValidationError as e:
-                        # If a book has bad data, ignore it and move on
-                        print(f"Skipping book: {e}")
-                        continue
-                await self.uow.commit()
-        return valid_books 
+            db_books = await self.uow.books.search_books_local(term) 
+
+            high_match = []
+            low_match = []
+            for row in db_books:
+                book_schema = schemas.BookSearchResult(
+                        id=row.Book.id,
+                        thumbnail=row.Book.meta_data.get("small_thumbnail"),
+                        title=row.Book.title,
+                        authors=row.Book.authors
+                        )
+                if row.score > 0.4:
+                    high_match.append(book_schema)
+                else:
+                    low_match.append(book_schema)
+            if not high_match:
+                api_results = await self.search_api(term=term)
+
+                return api_results + low_match
+
+
+            return high_match + low_match
+
+
+    async def search_api(self, term: str) -> list[schemas.BookSearchResult]:
+        api_results: list[schemas.BookSearchResult] = []
+
+        params = {"q": term, "key": self.api_key}
+        response = await self.client.get(self.base_url, params=params)
+
+        if not response.is_success: 
+            raise HTTPException(status_code=502, detail="External API Failure")
+
+        raw_data = response.json()
+
+        # Google returns everything in one big items dictionary
+        items = raw_data.get("items", [])
+        for item in items:
+            volume_info = item.get("volumeInfo", {})
+            try:
+                book = schemas.BookIngestSchema(**volume_info)
+                saved_book = await self.uow.books.save_book_to_db(book)
+                book_schema: schemas.BookSearchResult = schemas.BookSearchResult(
+                        id=saved_book.id,
+                        thumbnail=saved_book.meta_data.get("small_thumbnail"),
+                        title=saved_book.title,
+                        authors=saved_book.authors
+                        )
+                api_results.append(book_schema)
+            except ValidationError as e:
+                # If a book has bad data, ignore it and move on
+                print(f"Skipping book: {e}")
+                continue
+        return api_results
+    
 #endregion
 #region user books
 

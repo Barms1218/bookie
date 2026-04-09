@@ -8,32 +8,29 @@ from typing import Any
 import uuid
 import app.schemas as schemas
 import app.database.models as models
+import sqlalchemy as sa
 
 class BookRepository:
     def __init__(self, db: AsyncSession):
         self.db: AsyncSession = db
 
-    async def search_books_local(self, term: str) -> list[schemas.BookSearchResult]:
-        search_term = f"%{term}%"
+    async def search_books_local(self, term: str) -> list[Row[tuple[models.Book, Any]]]:
+        banned_terms = ["box", "set", "collection", "bundle", "complete series"]
+    
+        # 2. Format them for Postgres (e.g., "-box -set -collection")
+        exclusion_string = " " + " ".join([f"-{word}" for word in banned_terms])
+    
+        # 3. Combine with the user's search
+        search_term = term + exclusion_string
+        ts_query = func.websearch_to_tsquery('english', search_term)
         stmt = (
-                select(models.Book)
-                .where(models.Book.ts_vector.bool_op("@@")(func.websearch_to_tsquery('english', search_term)))
-                .limit(20)
-                .order_by(func.ts_rank(models.Book.ts_vector, func.websearch_to_tsquery('english', search_term)))
+                select(models.Book, func.ts_rank(models.Book.ts_vector, ts_query).label("score"))
+                .where(models.Book.ts_vector.bool_op("@@")(ts_query))
+                .order_by(sa.desc("score"))
         )
         result = await self.db.execute(stmt) # Get the rows object from sql
         
-        search_results = list(result.scalars().all()) # Extract the Book models from the rows
-        
-        # List comprehension to turn all the search results into something the user will want to see.
-        # They can get more information when looking at the books in-depth in their library.
-        books: list[schemas.BookSearchResult] = [
-                schemas.BookSearchResult(id=s.id,
-                                 thumbnail=s.meta_data.get("small_thumbnail"),
-                                 title=s.title,
-                                 authors=s.authors)
-                for s in search_results
-                ]
+        return  list(result.all()) # Extract the Book models from the rows
 
         return books
         
@@ -90,7 +87,7 @@ class BookRepository:
         return row
 
 
-    async def get_user_books(self, user_id: uuid.UUID) -> Row[tuple[uuid.UUID, str, list[str], Any]] | None:
+    async def get_user_books(self, user_id: uuid.UUID) -> Row[tuple[uuid.UUID, str, str, Any]] | None:
         stmt = (
             select(
                 models.UserBook.book_id.label("id"),

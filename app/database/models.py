@@ -44,9 +44,17 @@ class User(Base):
 
     # Relationships
     user_books: Mapped[list["UserBook"] | None] = Relationship(back_populates="user", cascade="all, delete-orphan")
-    clubs: Mapped[list["BookClub"] | None] = Relationship(
-            secondary="club_members", back_populates="users")                                        
     book_cases: Mapped[list["BookCase"]] = Relationship(back_populates="user", cascade="all, delete-orphan")
+    # Path 1: Direct access to clubs (User.clubs)
+    clubs: Mapped[list["BookClub"]] = Relationship(
+        "BookClub", 
+        secondary="club_members", 
+        back_populates="members",
+        viewonly=True # Tell SQLAlchemy this is for reading only to avoid conflicts
+    )
+
+    # Path 2: Access via the association object (User.club_associations)
+    club_associations: Mapped[list["ClubMember"]] = Relationship("ClubMember", back_populates="user")
 
 class Book(Base):
     __tablename__: str = "books"
@@ -54,7 +62,7 @@ class Book(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     isbn: Mapped[str | None] = mapped_column(String(13), index=True, unique=True)
     title: Mapped[str] = mapped_column(String(255), index=True)
-    authors: Mapped[list[str]] = mapped_column(Text, index=True) 
+    authors: Mapped[str] = mapped_column(Text, index=True) 
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     ts_vector: Mapped[str] = mapped_column(
@@ -86,7 +94,7 @@ class UserBook(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
     shelf_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("shelves.id"))
-
+    custom_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(
             DateTime(timezone=True), default=None, nullable=True) 
     reading_status: Mapped[ReadingStatus] = mapped_column(Enum(ReadingStatus, name="reading_status"), nullable=False)
@@ -148,7 +156,7 @@ class Entry(Base):
     type: Mapped[EntryType] = mapped_column(Enum(
         EntryType, name="entrytype"), nullable=False)
 
-    user_book: Mapped["UserBook"] = Relationship(back_populates="entries", cascade="all, delete-orphan")
+    user_book: Mapped["UserBook"] = Relationship(back_populates="entries")
     entry_tags: Mapped[list["EntryTag"]] = Relationship(back_populates="entry", cascade="all, delete-orphan" )
     tags: AssociationProxy[list["Tag"]] = association_proxy("entry_tags", "tags")
 
@@ -189,19 +197,27 @@ class BookClub(Base):
     created_at: Mapped[datetime] = mapped_column(
             DateTime(timezone=True), server_default=func.now())
 
-    user: Mapped[list["User"]] = Relationship(
-            secondary="club_members", back_populates="clubs")
-    members: Mapped[list["ClubMember"]] = Relationship(back_populates="club", cascade="all, delete-orphan")
+    # Path 1: Direct access to members (BookClub.members)
+    members: Mapped[list["User"]] = Relationship(
+            "User", 
+            secondary="club_members", 
+            back_populates="clubs",
+            # Added 'club' and 'member_associations' to the overlaps list
+            overlaps="club_associations,user,club,member_associations" 
+    )
+
+    # Path 2: Access via the association object
+    member_associations: Mapped[list["ClubMember"]] = Relationship("ClubMember", back_populates="club")
 
 class ClubMember(Base):
     __tablename__: str = "club_members"
 
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
-    club_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("book_clubs.id", ondelete="CASCADE"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    club_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("book_clubs.id", ondelete="CASCADE"), primary_key=True)
     role: Mapped[str] = mapped_column(String, default="member")
 
-    club: Mapped["BookClub"] = Relationship(back_populates="members", cascade="all, delete-orphan")
+    user: Mapped["User"] = Relationship("User", back_populates="club_associations", overlaps="clubs, club_members")
+    club: Mapped["BookClub"] = Relationship("BookClub", back_populates="member_associations", overlaps="clubs, club_members")
 
 class BookTag(Base):
     __tablename__: str = "book_tags"
@@ -230,7 +246,7 @@ class EntryTag(Base):
     tag_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tags.id", ondelete="CASCADE"))
 
     # Relationships
-    entry: Mapped["Entry"] = Relationship(back_populates="entry_tag")
+    entry: Mapped["Entry"] = Relationship(back_populates="entry_tags")
     tag: Mapped["Tag"] = Relationship(back_populates="entry_tags")
 
     __table_args__: tuple[Any, ...] = (

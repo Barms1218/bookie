@@ -22,11 +22,18 @@ class BookIngestSchema(BaseModel):
 
     title: str 
     isbn: str | None = None
-    authors: list[str]= Field(default_factory=list) # Make sure every model has its own list
+    authors: list[str] | str= Field(default_factory=list) # Make sure every model has its own list
     page_count: int = Field(default=0, alias="pageCount")
     description: str | None = None 
     
     meta_data: BookMetadata = Field(alias="metadata")
+
+    @field_validator("authors", mode="before")
+    @classmethod
+    def flatten_authors(cls, v):
+       if isinstance(v, list):
+           return ", ".join(v)
+       return v or ""
 
     @model_validator(mode='before')
     @classmethod
@@ -62,6 +69,8 @@ class BookIngestSchema(BaseModel):
        data["metadata"] = metadata_payload
 
        return data
+
+
 
 class UserBookIngest(BaseModel):
     """
@@ -110,7 +119,7 @@ class BookSearchResult(BaseModel):
     id: uuid.UUID
     thumbnail: str | None = None
     title: str
-    authors: list[str] = Field(default_factory=list)
+    authors: str
 
 class BookTagIngestSchema(BaseModel):
     user_book_id: uuid.UUID
