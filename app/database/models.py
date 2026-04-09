@@ -177,12 +177,12 @@ class BookClub(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     invite_code: Mapped[str] = mapped_column(String, index=True, unique=True)
-    current_book: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("books.id"))
-    favorite_book: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
-    Created_at: Mapped[datetime] = mapped_column(
+    current_book: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("books.id"), nullable=True)
+    favorite_book: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("books.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
             DateTime(timezone=True), server_default=func.now())
 
-    users: Mapped[list["User"]] = Relationship(
+    user: Mapped[list["User"]] = Relationship(
             secondary="club_members", back_populates="clubs")
     members: Mapped[list["ClubMember"]] = Relationship(back_populates="club", cascade="all, delete-orphan")
 
