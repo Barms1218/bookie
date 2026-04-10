@@ -108,6 +108,9 @@ class BookService:
                 continue
         return api_results
     
+    async def select_book_recommendation(self, title: str, authors: list[str]):
+        author_query = "+".join([f'inauthor:"{a}"' for a in authors])
+        query = f'intitle:"{title}" {author_query}'
 
     async def view_book(
             self, 

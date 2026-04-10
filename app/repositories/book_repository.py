@@ -81,6 +81,24 @@ class BookRepository:
 
         return list(result.scalars().all())
 
+    async def save_book_recommendations(self, user_id: uuid.UUID, recs: list[schemas.BookRecommendation]):
+        payload = [
+                {**rec.model_dump(), "user_id": user_id }
+                for rec in recs
+                ]
+        stmt = insert(models.BookRecommendation).values(payload)
+
+        upsert_stmt = stmt.on_conflict_do_update(
+                index_elements=['user_id', 'title'],
+                set_={
+                    models.BookRecommendation.authors: stmt.excluded.authors,
+                    models.BookRecommendation.reason: stmt.excluded.reason
+                    }
+                ).returning(models.BookRecommendation)
+        result = await self.db.execute(upsert_stmt)
+
+        return list(result.scalars().all())
+
     # Upsert function. If there's a conflict on the isbn update the title
     async def save_book_to_db(self, book_schema: schemas.BookIngestSchema) -> models.Book:
         # Prepare the insert

@@ -49,6 +49,7 @@ class User(Base):
     # Relationships
     user_books: Mapped[list["UserBook"] | None] = Relationship(back_populates="user", cascade="all, delete-orphan")
     book_cases: Mapped[list["BookCase"]] = Relationship(back_populates="user", cascade="all, delete-orphan")
+    recommendations: Mapped[list["BookRecommendation"]] = Relationship(back_populates="user")
     # Path 1: Direct access to clubs (User.clubs)
     clubs: Mapped[list["BookClub"]] = Relationship(
         "BookClub", 
@@ -89,6 +90,27 @@ class Book(Base):
             Index('ix_tx_vector', 'ts_vector', postgresql_using='gin'),
             Index('ix_book_authors', 'authors', postgresql_using='gin')
             )
+
+class BookRecommendation(Base):
+    __tablename__: str = "book_recommendations"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(String(255))
+    authors: Mapped[list[str]] = mapped_column(ARRAY(String))
+    reason: Mapped[str] = mapped_column(Text, server_default='Based on your reading history.')
+    created_at: Mapped[datetime] = mapped_column(
+            DateTime(timezone=True), server_default=func.now()
+            )
+
+
+    # Relationships
+    user: Mapped["User"] = Relationship(back_populates="recommendations")
+
+    __table_args__: tuple[Any, ...] = (
+        UniqueConstraint('user_id', 'title', name='_user_book_recommendation_uc'),
+    )
+
 
 class UserBook(Base):
     __tablename__: str = "user_books"

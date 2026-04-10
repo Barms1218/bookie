@@ -6,7 +6,8 @@ from .book_schemas import BookSearchResult
 from .book_schemas import BookTagIngestSchema
 from .book_schemas import BookTag
 from .book_schemas import BookTagDisplay
-from .book_schemas import BookRecommendSchema
+from .book_schemas import TopBooksSchema
+from .book_schemas import BookRecommendation
 from .entry_schemas import EntryIngestSchema
 from .entry_schemas import EntryPublic
 from .entry_schemas import EntrySearchSchema
@@ -27,7 +28,8 @@ __all__ = [
     "BookTag",
     "BookTagDisplay",
     "BookTagIngestSchema",
-    "BookRecommendSchema",
+    "TopBooksSchema",
+    "BookRecommendation",
     "EntryIngestSchema",
     "EntryPublic",
     "EntrySearchSchema",

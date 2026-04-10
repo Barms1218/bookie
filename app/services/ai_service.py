@@ -2,18 +2,18 @@ from fastapi import HTTPException
 from google import genai
 from google.genai import types
 from app.database.unit_of_work import UnitOfWork
+from pydantic import TypeAdapter
 import app.schemas as schemas
 import json
 import httpx
 import uuid
 
-import uuid
 
 # Mocking the IDs
 user_id = uuid.uuid4()
 
 test_user_profile = [
-    schemas.BookRecommendSchema(
+    schemas.TopBooksSchema(
         title="The Fellowship of the Ring",
         authors=["J.R.R. Tolkien"],
         overall_rating=5,
@@ -24,7 +24,7 @@ test_user_profile = [
             schemas.BookTag(name="Linguistics", rating_value=3)
         ]
     ),
-    schemas.BookRecommendSchema(
+    schemas.TopBooksSchema(
         title="Empire of Silence",
         authors=["Christopher Ruocchio"],
         overall_rating=5,
@@ -35,7 +35,7 @@ test_user_profile = [
             schemas.BookTag(name="Philosophical Sci-Fi", rating_value=5)
         ]
     ),
-    schemas.BookRecommendSchema(
+    schemas.TopBooksSchema(
         title="Red Rising",
         authors=["Pierce Brown"],
         overall_rating=5,
@@ -46,7 +46,7 @@ test_user_profile = [
             schemas.BookTag(name="Fast Paced", rating_value=4)
         ]
     ),
-    schemas.BookRecommendSchema(
+    schemas.TopBooksSchema(
         title="The Eye of the World",
         authors=["Robert Jordan"],
         overall_rating=4,
@@ -57,7 +57,7 @@ test_user_profile = [
             schemas.BookTag(name="Vast Lore", rating_value=5)
         ]
     ),
-    schemas.BookRecommendSchema(
+    schemas.TopBooksSchema(
         title="The Hobbit",
         authors=["J.R.R. Tolkien"],
         overall_rating=4,
@@ -100,8 +100,8 @@ class AIService:
     async def generate_book_suggestion(self, user_id: uuid.UUID):
         row = await self.uow.books.build_user_profile(id=user_id)
         
-        user_profile: list[schemas.BookRecommendSchema] = [
-        schemas.BookRecommendSchema(
+        user_profile: list[schemas.TopBooksSchema] = [
+        schemas.TopBooksSchema(
             title=user_book.book.title, # Or user_book.custom_title if you use that
             authors=user_book.book.authors,
             overall_rating=user_book.overall_rating,
@@ -122,7 +122,7 @@ class AIService:
         system_msg = (
             "You are a sophisticated book recommendation engine. "
             "Analyze the provided reading history where 4-5 stars indicate strong preference. "
-            "Provide 3 suggestions for new books NOT in the list. "
+            "Provide 3 suggestions for new books NOT in the list. The suggestions must not include a title from the list."
             "Each suggestion must include a reason linking back to  the user's favorite tags and authors."
         )
         response = await self.genai.aio.models.generate_content(
@@ -153,6 +153,13 @@ class AIService:
             return []
 
         try:
-            return json.loads(content)
+            raw_json =  json.loads(content)
+            adapter = TypeAdapter(list[schemas.BookRecommendation])
+            validated_recs = adapter.validate_python(raw_json)
+            async with self.uow:
+                inserted = await self.uow.books.save_book_recommendations(user_id=user_id, recs=validated_recs)
+                return inserted
+
         except json.JSONDecodeError:
             return []
+

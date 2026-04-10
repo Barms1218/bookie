@@ -42,6 +42,7 @@ class BookIngestSchema(BaseModel):
         if not v or not v.strip():
             raise ValueError("Book must have a description")
         return v
+
     @field_validator("authors", mode="before")
     @classmethod
     def verify_authors(cls, v: list[str]) -> list[str]:
@@ -146,7 +147,7 @@ class BookTagIngestSchema(BaseModel):
     tag_id: uuid.UUID
     rating_value: int | None
 
-class BookRecommendSchema(BaseModel):
+class TopBooksSchema(BaseModel):
     title: str | None
     authors: list[str]
     overall_rating: int | None
@@ -156,3 +157,16 @@ class BookTag(BaseModel):
     name: str
     rating_value: int | None
 
+class BookRecommendation(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(populate_by_name=True)
+
+    title: str
+    authors: list[str] = Field(default_factory=list)
+    reason: str
+
+    @field_validator("authors", mode="before")
+    @classmethod
+    def verify_authors(cls, v: list[str]) -> list[str]:
+        if isinstance(v, str) and v.strip() != "":
+            return [v]
+        return v

@@ -7,7 +7,7 @@ import app.schemas as schemas
 
 router = APIRouter(prefix="/models", tags=['models'])
 
-@router.get("/recommendations/{user_id}")
+@router.get("/recommendations/{user_id}", response_model=list[schemas.BookRecommendation], status_code=201)
 async def get_book_recommendations(
         user_id: uuid.UUID,
         service:  Annotated[AIService, Depends(get_ai_service)]):
