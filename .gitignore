@@ -1,1 +1,17 @@
 .env
+
+# Flutter/Dart
+/frontend/build
+/front/.dart_tool/
+/frontend/.packages
+/frontend/android/local.properties
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# System/IDE
+.DS_Store
+.idea/
+.vscode/
