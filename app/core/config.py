@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     # External APIs
     google_api_key: str
+    gemini_api_key: str
 
     @property
     def database_url(self) -> str:

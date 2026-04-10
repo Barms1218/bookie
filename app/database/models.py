@@ -1,6 +1,7 @@
 from typing import Any
 from sqlalchemy import CheckConstraint, Column, Enum, ForeignKey, String, Text, Integer, Index, Boolean, UniqueConstraint, func, Float, DateTime, Computed
 from datetime import datetime
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, ARRAY
 from sqlalchemy.dialects.postgresql.ext import to_tsvector
 from sqlalchemy.orm import Mapped, mapped_column, Relationship
@@ -65,14 +66,14 @@ class Book(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     isbn: Mapped[str | None] = mapped_column(String(13), index=True, unique=True)
     title: Mapped[str] = mapped_column(String(255), index=True)
-    authors: Mapped[str] = mapped_column(Text, index=True) 
+    authors: Mapped[list[str]] = mapped_column(ARRAY(String)) 
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[str] = mapped_column(Text, server_default='')
     ts_vector: Mapped[str] = mapped_column(
         TSVECTOR, 
         sa.Computed(
             "setweight(to_tsvector('english'::regconfig, coalesce(title, '')), 'A') || "
-            "setweight(to_tsvector('english'::regconfig, coalesce(authors::text, '')), 'B') || "
+            "setweight(to_tsvector('english'::regconfig, array_to_string(authors, ' ')), 'B') || "
             "setweight(to_tsvector('english'::regconfig, coalesce(description, '')), 'C')",
             persisted=True
         )
@@ -86,6 +87,7 @@ class Book(Base):
 
     __table_args__: tuple[Any, ...] = (
             Index('ix_tx_vector', 'ts_vector', postgresql_using='gin'),
+            Index('ix_book_authors', 'authors', postgresql_using='gin')
             )
 
 class UserBook(Base):

@@ -1,8 +1,8 @@
-"""initial
+"""initial setup
 
-Revision ID: 27919e0f866b
+Revision ID: 3a385bb9582a
 Revises: 
-Create Date: 2026-04-06 09:15:17.897194
+Create Date: 2026-04-09 18:53:01.812248
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '27919e0f866b'
+revision: str = '3a385bb9582a'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,30 +25,52 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('isbn', sa.String(length=13), nullable=True),
     sa.Column('title', sa.String(length=255), nullable=False),
-    sa.Column('authors', sa.ARRAY(sa.String()), nullable=False),
+    sa.Column('authors', postgresql.ARRAY(sa.String()), nullable=False),
     sa.Column('page_count', sa.Integer(), nullable=True),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('ts_vector', postgresql.TSVECTOR(), sa.Computed("to_tsvector('english', coalesce(description, ''))", persisted=True), nullable=False),
-    sa.Column('updated_on', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('ts_vector', postgresql.TSVECTOR(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('meta_data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('ix_book_authors', 'books', ['authors'], unique=False, postgresql_using='gin')
-    op.create_index('ix_book_description', 'books', ['ts_vector'], unique=False, postgresql_using='gin')
+    op.execute("""
+        CREATE FUNCTION books_ts_vector_update() RETURNS trigger AS $$
+        BEGIN
+            NEW.ts_vector := 
+                setweight(to_tsvector('english'::regconfig, NEW.title), 'A') ||
+                setweight(to_tsvector('english'::regconfig, array_to_string(NEW.authors, ' ')), 'B') ||
+                setweight(to_tsvector('english'::regconfig, NEW.description), 'C');
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+    """)
+
+    op.execute("""
+        CREATE TRIGGER books_ts_vector_trigger
+        BEFORE INSERT OR UPDATE ON books
+        FOR EACH ROW EXECUTE FUNCTION books_ts_vector_update();
+    """)
+    op.create_index(op.f('ix_books_authors'), 'books', ['authors'], unique=False)
     op.create_index(op.f('ix_books_isbn'), 'books', ['isbn'], unique=True)
     op.create_index(op.f('ix_books_title'), 'books', ['title'], unique=False)
+    op.create_index('ix_tx_vector', 'books', ['ts_vector'], unique=False, postgresql_using='gin')
     op.create_table('tags',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('name', sa.String(length=50), nullable=False),
+    sa.Column('type', sa.String(length=20), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_tags_name'), 'tags', ['name'], unique=True)
+    op.create_index(op.f('ix_tags_type'), 'tags', ['type'], unique=False)
     op.create_table('users',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('email', sa.String(length=255), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('date_joined', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('updated_on', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('password_hash', sa.String(length=255), nullable=True),
     sa.Column('google_id', sa.String(length=255), nullable=True),
     sa.Column('apple_id', sa.String(length=255), nullable=True),
@@ -60,47 +82,49 @@ def upgrade() -> None:
     op.create_table('book_cases',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=False),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('book_clubs',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('invite_code', sa.String(), nullable=False),
     sa.Column('current_book', sa.Uuid(), nullable=True),
-    sa.Column('favorite_book', sa.Uuid(), nullable=False),
-    sa.Column('created_on', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('favorite_book', sa.Uuid(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['current_book'], ['books.id'], ),
     sa.ForeignKeyConstraint(['favorite_book'], ['books.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_book_clubs_invite_code'), 'book_clubs', ['invite_code'], unique=True)
     op.create_table('club_members',
-    sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('club_id', sa.Uuid(), nullable=False),
     sa.Column('role', sa.String(), nullable=False),
-    sa.ForeignKeyConstraint(['club_id'], ['book_clubs.id'], ),
+    sa.ForeignKeyConstraint(['club_id'], ['book_clubs.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('user_id', 'club_id')
     )
     op.create_table('shelves',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('bookcase_id', sa.Uuid(), nullable=False),
     sa.Column('positions', sa.Integer(), nullable=False),
     sa.Column('capacity', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['bookcase_id'], ['book_cases.id'], ),
+    sa.ForeignKeyConstraint(['bookcase_id'], ['book_cases.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('user_books',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('book_id', sa.Uuid(), nullable=False),
-    sa.Column('shelf_id', sa.Uuid(), nullable=False),
+    sa.Column('shelf_id', sa.Uuid(), nullable=True),
+    sa.Column('custom_title', sa.String(length=255), nullable=True),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('reading_status', sa.Enum('want_to_read', 'reading', 'finished', 're_reading', 'did_not_finish', name='reading_status'), nullable=False),
+    sa.Column('overall_rating', sa.Integer(), nullable=True),
+    sa.Column('search_vector', postgresql.TSVECTOR(), sa.Computed("to_tsvector('english', custom_title)", persisted=True), nullable=False),
     sa.ForeignKeyConstraint(['book_id'], ['books.id'], ),
     sa.ForeignKeyConstraint(['shelf_id'], ['shelves.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('user_id', 'book_id', name='uix_user_book')
     )
@@ -110,8 +134,8 @@ def upgrade() -> None:
     sa.Column('tag_id', sa.Uuid(), nullable=False),
     sa.Column('rating_value', sa.Integer(), nullable=True),
     sa.CheckConstraint('rating_value >= 0 AND rating_value <= 5', name='rating_between_0_and_5'),
-    sa.ForeignKeyConstraint(['tag_id'], ['tags.id'], ),
-    sa.ForeignKeyConstraint(['user_book_id'], ['user_books.id'], ),
+    sa.ForeignKeyConstraint(['tag_id'], ['tags.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_book_id'], ['user_books.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('user_book_id', 'tag_id', name='_user_book_tag_uc')
     )
@@ -120,22 +144,27 @@ def upgrade() -> None:
     sa.Column('user_book_id', sa.Uuid(), nullable=False),
     sa.Column('content', sa.Text(), nullable=False),
     sa.Column('ts_vector', postgresql.TSVECTOR(), sa.Computed("to_tsvector('english', content)", persisted=True), nullable=False),
-    sa.Column('page_number', sa.Integer(), nullable=True),
-    sa.Column('created_on', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('updated_on', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('page', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('chapter', sa.String(length=255), nullable=True),
     sa.Column('is_private', sa.Boolean(), nullable=False),
     sa.Column('type', sa.Enum('note', 'quote', 'journal', name='entrytype'), nullable=False),
-    sa.ForeignKeyConstraint(['user_book_id'], ['user_books.id'], ),
+    sa.ForeignKeyConstraint(['user_book_id'], ['user_books.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('user_book_id', 'created_on', name='entry_created_on')
+    sa.UniqueConstraint('user_book_id', 'created_at', name='entry_created_on')
     )
+    op.create_index(op.f('ix_entries_chapter'), 'entries', ['chapter'], unique=False)
     op.create_index('ix_entries_tx_vector', 'entries', ['ts_vector'], unique=False, postgresql_using='gin')
+    op.create_index('ix_entries_user_book_chapter', 'entries', ['user_book_id', 'chapter'], unique=False)
+    op.create_index('ix_entries_user_book_page', 'entries', ['user_book_id', 'page'], unique=False)
     op.create_table('entry_tags',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('entry_id', sa.Uuid(), nullable=False),
     sa.Column('tag_id', sa.Uuid(), nullable=False),
-    sa.ForeignKeyConstraint(['entry_id'], ['entries.id'], ),
-    sa.ForeignKeyConstraint(['tag_id'], ['tags.id'], ),
+    sa.ForeignKeyConstraint(['entry_id'], ['entries.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['tag_id'], ['tags.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('entry_id', 'tag_id', name='_user_entry_tag_uc')
     )
@@ -146,7 +175,10 @@ def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('entry_tags')
+    op.drop_index('ix_entries_user_book_page', table_name='entries')
+    op.drop_index('ix_entries_user_book_chapter', table_name='entries')
     op.drop_index('ix_entries_tx_vector', table_name='entries', postgresql_using='gin')
+    op.drop_index(op.f('ix_entries_chapter'), table_name='entries')
     op.drop_table('entries')
     op.drop_table('book_tags')
     op.drop_table('user_books')
@@ -157,11 +189,15 @@ def downgrade() -> None:
     op.drop_table('book_cases')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
+    op.drop_index(op.f('ix_tags_type'), table_name='tags')
     op.drop_index(op.f('ix_tags_name'), table_name='tags')
     op.drop_table('tags')
+    op.drop_index('ix_tx_vector', table_name='books', postgresql_using='gin')
     op.drop_index(op.f('ix_books_title'), table_name='books')
     op.drop_index(op.f('ix_books_isbn'), table_name='books')
-    op.drop_index('ix_book_description', table_name='books', postgresql_using='gin')
-    op.drop_index('ix_book_authors', table_name='books', postgresql_using='gin')
+    op.drop_index(op.f('ix_books_authors'), table_name='books')
+    op.execute("DROP TRIGGER IF EXISTS books_ts_vector_trigger ON books")
+    op.execute("DROP FUNCTION IF EXISTS books_ts_vector_update")
     op.drop_table('books')
+
     # ### end Alembic commands ###
