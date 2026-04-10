@@ -53,4 +53,12 @@ def get_tag_service(
     client = request.app.state.http_client
     return services.TagService(client=client, uow=uow)
 
-
+def get_ai_service(
+        request: Request,
+        uow: UnitOfWork = Depends(get_unit_of_work)
+        ) -> services.AIService:
+    client = request.app.state.http_client
+    return services.AIService(
+            api_key=settings.gemini_api_key,
+            client=client,
+            uow=uow)

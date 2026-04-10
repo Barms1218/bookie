@@ -7,7 +7,7 @@ import app.schemas as schemas
 
 router = APIRouter(prefix="/books", tags=["books"])
 
-@router.get("/search/{user_id/{term}", 
+@router.get("/search/{user_id", 
             response_model=list[schemas.BookSearchResult],
             status_code=200)
 async def search_books(

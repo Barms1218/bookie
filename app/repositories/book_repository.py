@@ -63,20 +63,23 @@ class BookRepository:
         return list(result.all())
 
         
-    async def build_user_profile(self, id: uuid.UUID):
+    async def build_user_profile(self, id: uuid.UUID) -> list[models.UserBook]:
         stmt =(
                 select(models.UserBook)
                 .join(models.UserBook.book)
                 .where(models.UserBook.user_id == id,
                        models.UserBook.overall_rating >= 4)
                 .options(
-                    joinedload(models.UserBook.book)
-                    .selectinload(models.UserBook.book_tags)
+                    selectinload(models.UserBook.book_tags)
                     .selectinload(models.BookTag.tag)
                     )
                 .limit(10)
                 ).order_by(models.UserBook.overall_rating.desc()
         )
+
+        result = await self.db.execute(stmt)
+
+        return list(result.scalars().all())
 
     # Upsert function. If there's a conflict on the isbn update the title
     async def save_book_to_db(self, book_schema: schemas.BookIngestSchema) -> models.Book:
@@ -116,7 +119,7 @@ class BookRepository:
         return row
 
 
-    async def get_user_books(self, user_id: uuid.UUID) -> Row[tuple[uuid.UUID, str, str, Any]] | None:
+    async def get_user_books(self, user_id: uuid.UUID) -> Row[tuple[uuid.UUID, str, list[str], Any]] | None:
         stmt = (
             select(
                 models.UserBook.book_id.label("id"),

@@ -3,8 +3,16 @@ from pydantic import BaseModel, Field, ConfigDict, model_validator, field_valida
 from datetime import datetime
 import uuid
 import re
+import enum
 
 from app.schemas.entry_schemas import EntryPublic
+
+class ReadingStatus(str, enum.Enum):
+    want_to_read = "Want To Read"
+    reading = "Reading"
+    finished = "Finished"
+    re_reading = "Re-Reading"
+    did_not_finish = "Did Not Finish"
 
 class IndustryIdentifier(TypedDict):
     type: str
@@ -22,23 +30,25 @@ class BookIngestSchema(BaseModel):
 
     title: str 
     isbn: str | None = None
-    authors: list[str] | str = "" # Make sure every model has its own list
+    authors: list[str] # Make sure every model has its own list
     page_count: int = Field(default=0, alias="pageCount")
     description: str | None = None 
     
     meta_data: BookMetadata = Field(alias="metadata")
 
+    @field_validator("description", mode="before")
+    @classmethod
+    def verify_description(cls, v) -> str:
+        if not v or not v.strip():
+            raise ValueError("Book must have a description")
+        return v
     @field_validator("authors", mode="before")
     @classmethod
-    def flatten_authors(cls, v):
-        if isinstance(v, list):
-            # Join with a comma if it's a list, or return empty string if list is empty
-            return ", ".join(v) if v else ""
-        if v is None:
-            return ""
-        # Ensure it's a string just in case it's some other weird type
-        return str(v)
-
+    def verify_authors(cls, v: list[str]) -> list[str]:
+        if isinstance(v, str) and v.strip() != "":
+            return [v]
+        return v
+            
     @model_validator(mode='before')
     @classmethod
     def wrap_metadata(cls, data: dict[str, Any]):
@@ -92,7 +102,7 @@ class UserBookIngest(BaseModel):
     user_id: uuid.UUID
     book_id: uuid.UUID
     shelf_id: uuid.UUID | None = None
-    reading_status: str | None 
+    reading_status: ReadingStatus | None 
     tags: list[BookTagIngestSchema] | None = Field(default_factory=list)
 
     @field_validator("custom_title")
@@ -112,7 +122,7 @@ class BookCover(BaseModel):
     thumbnail: str | None 
     description: str | None 
     categories: list[str] | None = Field(default_factory=list)
-    authors: str
+    authors: list[str]
     total_pages: int | None 
 
 # TODO There needs to be a model to hold user book appearance data
@@ -122,14 +132,14 @@ class UserBookCover(BaseModel):
     title: str
     thumbnail: str | None
     description: str | None
-    authors: str
+    authors: list[str]
     tags: list[BookTagDisplay] | None
 
 class BookSearchResult(BaseModel):
     id: uuid.UUID
     thumbnail: str | None = None
     title: str
-    authors: str
+    authors: list[str]
 
 class BookTagIngestSchema(BaseModel):
     user_book_id: uuid.UUID
@@ -137,8 +147,9 @@ class BookTagIngestSchema(BaseModel):
     rating_value: int | None
 
 class BookRecommendSchema(BaseModel):
-    title: str
-    overall_rating: int
+    title: str | None
+    authors: list[str]
+    overall_rating: int | None
     book_tags: list[BookTag]
 
 class BookTag(BaseModel):

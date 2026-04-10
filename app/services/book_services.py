@@ -21,7 +21,7 @@ class BookService:
         self.base_url: str = "https://www.googleapis.com/books/v1/volumes"
         self.client: httpx.AsyncClient = client
         self.uow: UnitOfWork = uow 
-#region books
+
     #TODO One day work on a feature that will get a total number of results between database
     # And API
     async def get_book_with_term(self, id: uuid.UUID, term: str) -> list[schemas.BookSearchResult] | None:
@@ -108,8 +108,6 @@ class BookService:
                 continue
         return api_results
     
-#endregion
-#region user books
 
     async def view_book(
             self, 
@@ -202,8 +200,7 @@ class BookService:
                         )
                     for i in inserted_tags
                     ]
-#endregion
-#region entries
+
     async def submit_entry(self, schema: schemas.EntryIngestSchema) -> schemas.EntryPublic:
         """
         Insert new tags, then use the returned tags alongside a returned entry from the database
@@ -302,5 +299,4 @@ class BookService:
 
     async def delete_entries(self, ids: list[uuid.UUID]) -> None:
         await self.uow.entries.delete_book_entries(entry_ids=ids)
-#endregion
 
