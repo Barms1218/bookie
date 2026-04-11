@@ -72,6 +72,21 @@ class _BookSearchPageState extends State<BookSearchPage> {
                             ),
                             title: Text(book.title),
                             subtitle: Text(book.authors.join(", ")),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.add_circle_outline),
+                              onPressed: () async {
+                                final success = await _bookService.addToLibrary(
+                                  book.id,
+                                );
+                                if (success && context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text("Saved ${book.title}!"),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
                           );
                         },
                       );

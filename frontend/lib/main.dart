@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/ui/search_page.dart';
+import 'package:frontend/ui/login_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -73,7 +74,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return MaterialApp(
       title: 'Bookie',
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-      home: const BookSearchPage(),
+      home: const LoginPage(),
     );
   }
 }
