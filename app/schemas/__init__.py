@@ -17,7 +17,9 @@ from .tag_schemas import TagIngestSchema
 from .tag_schemas import PublicTag
 from .tag_schemas import AllTagsResponse
 from .user import UserIngestSchema
-from .user import UserProfile
+from .user import CurrentUser
+from .user import UserLoginSchema
+from .user import Token
 
 __all__ = [
     "BookIngestSchema",
@@ -39,5 +41,7 @@ __all__ = [
     "PublicTag",
     "AllTagsResponse",
     "UserIngestSchema",
-    "UserProfile",
+    "CurrentUser",
+    "UserLoginSchema",
+    "Token",
 ]

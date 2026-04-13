@@ -4,19 +4,11 @@ import string
 import uuid
 
 class UserIngestSchema(BaseModel):
-    name: str  
     email: EmailStr
     password: SecretStr | None = None
     password_hash: str | None = None
     google_id: str | None = None
     apple_id: str | None = None
-
-    @field_validator("name")
-    @classmethod
-    def no_empty_name(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("Name cannot be blank")
-        return v
 
     @field_validator("password")
     @classmethod
@@ -31,9 +23,21 @@ class UserIngestSchema(BaseModel):
         return p
 
 
-class UserProfile(BaseModel):
+class CurrentUser(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
     id: uuid.UUID
-    name: str
     email: str
 
+class UserLoginSchema(BaseModel):
+    email: EmailStr
+    password: str 
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: str | None = None
+
+class UserInDB(BaseModel):
+    hashed_password: str

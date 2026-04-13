@@ -1,11 +1,17 @@
 from typing import Annotated
-from app.dependencies import get_book_service
+from app.dependencies import get_book_service, get_current_user
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.services.book_services import BookService
 import uuid
 import app.schemas as schemas
 
 router = APIRouter(prefix="/books", tags=["books"])
+
+credentials_exception = HTTPException(
+        status_code=401,
+        detail="Incorrect username or password",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 @router.get("/search/{user_id", 
             response_model=list[schemas.BookSearchResult],
@@ -19,14 +25,16 @@ async def search_books(
 
 @router.post("/view/{book_id}/{user_id}", status_code=200)
 async def select_listed_book(
-        user_id: uuid.UUID,
         book_id: uuid.UUID, 
-        service: Annotated[BookService, Depends(get_book_service)]
-        ) -> schemas.UserBookCover | schemas.BookCover:
-    return await service.view_book(user_id=user_id, book_id=book_id)
+        service: Annotated[BookService, Depends(get_book_service)],
+        current_user: Annotated[schemas.CurrentUser, Depends(get_current_user)]) -> schemas.UserBookCover | schemas.BookCover:
+    return await service.view_book(user_id=current_user.id, book_id=book_id)
 
 @router.post("/add", response_model=schemas.BookCover, status_code=201)
-async def add_user_book(schema: schemas.UserBookIngest, service: Annotated[BookService, Depends(get_book_service)]):
+async def add_user_book(
+        schema: schemas.UserBookIngest, 
+        service: Annotated[BookService, Depends(get_book_service)],
+        current_user: Annotated[schemas.CurrentUser, Depends(get_current_user)]):
     return await service.save_user_book(schema=schema)
 
 

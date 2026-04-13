@@ -2,6 +2,7 @@ from sqlalchemy import select, or_, func
 from sqlalchemy.dialects.postgresql import insert
 from app.database.models import User 
 from sqlalchemy.ext.asyncio import AsyncSession
+import uuid
 
 from app.schemas.user import UserIngestSchema
 
@@ -21,3 +22,9 @@ class UserRepository:
 
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none() 
+
+    async def get_by_id(self, id: uuid.UUID) -> User | None:
+        stmt = select(User).where(User.id == id)
+
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()

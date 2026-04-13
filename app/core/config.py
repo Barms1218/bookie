@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     google_api_key: str
     gemini_api_key: str
 
+    # JWT
+    secret_key: str
+    algorithm: str
+    expires: int = 60
+
     @property
     def database_url(self) -> str:
         return (

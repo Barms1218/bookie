@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:frontend/ui/login_page.dart';
 import 'package:http/http.dart' as http;
 import '../models/user.dart';
 
@@ -6,7 +7,7 @@ class UserService {
   final String baseURL = "http://127.0.0.1";
 
   Future<User> register(UserRegister user) async {
-    final url = Uri.parse("$baseURL/users/register?=$user");
+    final url = Uri.parse("$baseURL/users/register");
 
     final response = await http.post(
       url,
