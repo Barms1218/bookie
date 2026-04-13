@@ -5,7 +5,7 @@ import httpx
 from fastapi import HTTPException
 from app.database.unit_of_work import UnitOfWork
 from argon2 import PasswordHasher
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 import app.schemas as schemas
 from app.core import config
 import jwt
@@ -31,13 +31,7 @@ class UserService:
                 # This triggers if the email (Unique Constraint) is violated
                 await self.uow.rollback() 
                 raise HTTPException(status_code=400, detail=f"{e}")
-
-            claims: dict[str, str] = {
-                    "sub": str(inserted_user.id),
-                    "email": inserted_user.email
-                    }
             
-            token = self.create_access_token(data=claims)
             current_user = schemas.CurrentUser(id=inserted_user.id, email=inserted_user.email)
 
             return current_user
@@ -57,11 +51,6 @@ class UserService:
                       user_login.password)
         except VerifyMismatchError:
             raise HTTPException(401, "Invalid credentials.")
-
-        claims: dict[str, str] = {
-                "sub": str(user.id),
-                "email": user.email
-                }
 
         current_user = schemas.CurrentUser(
                 id=user.id, 
@@ -83,7 +72,7 @@ class UserService:
         return schemas.CurrentUser(id=current_user.id,email=current_user.email)
 
 
-    def create_access_token(self, data: dict[str, Any], expires_delta: timedelta | None = None): 
+    async def create_access_token(self, data: dict[str, Any], expires_delta: timedelta | None = None): 
         to_encode = data.copy()
         if expires_delta:
             expire = datetime.now(timezone.utc) + expires_delta

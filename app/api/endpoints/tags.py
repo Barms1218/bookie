@@ -1,8 +1,7 @@
 from typing import Annotated
-from app.dependencies import get_tag_service
-from fastapi import APIRouter, Depends, HTTPException, Query
+from app.dependencies import get_current_user, get_tag_service
+from fastapi import APIRouter, Depends 
 from app.services.tag_service import TagService
-import uuid
 import app.schemas as schemas
 
 router = APIRouter(prefix="/tags", tags=['tags'])
@@ -12,5 +11,7 @@ async def create_tag(name: str, type: str, service: Annotated[TagService, Depend
     return service.create_new_tags(new_tag=schemas.TagIngestSchema(name=name, type=type))
 
 @router.get("/all", response_model=list[schemas.AllTagsResponse], status_code=200)
-async def get_tags(service: Annotated[TagService, Depends(get_tag_service)]):
+async def get_tags(
+        service: Annotated[TagService, Depends(get_tag_service)],
+        _: Annotated[schemas.CurrentUser, Depends(get_current_user)]):
     return await service.get_tags()

@@ -1,6 +1,6 @@
 from typing import Annotated
 from app.dependencies import get_book_service, get_current_user
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException 
 from app.services.book_services import BookService
 import uuid
 import app.schemas as schemas
@@ -17,10 +17,10 @@ credentials_exception = HTTPException(
             response_model=list[schemas.BookSearchResult],
             status_code=200)
 async def search_books(
-                user_id: uuid.UUID,
                 term: str,
-                service: Annotated[BookService, Depends(get_book_service)]):
-    return await service.get_book_with_term(id=user_id, term=term)
+                service: Annotated[BookService, Depends(get_book_service)],
+                current_user: Annotated[schemas.CurrentUser, Depends(get_current_user)]):
+    return await service.get_book_with_term(id=current_user.id, term=term)
 
 
 @router.post("/view/{book_id}/{user_id}", status_code=200)
@@ -34,7 +34,7 @@ async def select_listed_book(
 async def add_user_book(
         schema: schemas.UserBookIngest, 
         service: Annotated[BookService, Depends(get_book_service)],
-        current_user: Annotated[schemas.CurrentUser, Depends(get_current_user)]):
+        _: Annotated[schemas.CurrentUser, Depends(get_current_user)]):
     return await service.save_user_book(schema=schema)
 
 
@@ -43,13 +43,17 @@ async def new_note(schema: schemas.EntryIngestSchema, service: Annotated[BookSer
    return await service.submit_entry(schema=schema) 
 
 @router.post("/user_books/{user_book_id}/entries/{type}", response_model=list[schemas.EntryPublic], status_code=200)
-async def get_book_entries(user_book_id: uuid.UUID, type: str, service: Annotated[BookService, Depends(get_book_service)]):
+async def get_book_entries(
+                user_book_id: uuid.UUID, 
+                type: str,
+                service: Annotated[BookService, Depends(get_book_service)],
+                _: Annotated[schemas.CurrentUser, Depends(get_current_user)]):
         return await service.get_entries_for_book(user_book_id=user_book_id, entry_type=type)
 
 
-# TODO delete an entry from a user book
 @router.delete("/entries/delete", status_code=200)
 async def delete_book_entries(
         ids: list[uuid.UUID],
-        service: Annotated[BookService, Depends(get_book_service)]):
+        service: Annotated[BookService, Depends(get_book_service)],
+        _: Annotated[schemas.CurrentUser, Depends(get_current_user)]):
     return service.delete_entries(ids=ids)
