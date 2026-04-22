@@ -102,21 +102,20 @@ class AIService:
         
         user_profile: list[schemas.TopBooksSchema] = [
         schemas.TopBooksSchema(
-            title=user_book.book.title, # Or user_book.custom_title if you use that
+            title=user_book.book.title, 
             authors=user_book.book.authors,
             overall_rating=user_book.overall_rating,
-            # This part needs to be a list!
             book_tags=[
                 schemas.BookTag(
-                    name=bt.tag.name,        # bt is the BookTag link, bt.tag is the actual Tag
+                    name=bt.tag.name,        
                     rating_value=bt.rating_value
                 )
                 for bt in user_book.book_tags
             ]
         )
-        for user_book in row  # Assuming 'row' is your list of UserBook objects
+        for user_book in row  
         ]
-        test_data = [test.model_dump(exclude_none=True) for test in test_user_profile]
+        user_data = [test.model_dump(exclude_none=True) for test in test_user_profile]
 
         context_payload = [schema.model_dump_json(exclude_none=True) for schema in user_profile]
         system_msg = (
@@ -127,7 +126,7 @@ class AIService:
         )
         response = await self.genai.aio.models.generate_content(
                     model='gemini-2.5-flash',
-                    contents=f"User's top Books History: {test_data}",
+                    contents=f"User's top Books History: {user_data}",
                     config=types.GenerateContentConfig(
                         system_instruction=system_msg,
                         response_mime_type="application/json",
