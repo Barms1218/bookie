@@ -31,15 +31,15 @@ A backend utility to create and manage a personal library powered by Google Book
 
    2. **Configure Environment Variables:**
       ```
-      db_user=postgres_user_name
-      db_password=postgres-password
-      db_host=host
-      db_port=5432
-      db_name=bookie
-      google_api_key=google_books_api_key
-      gemini_api_key=gemini_api_key
-      secret_key=secret key
-      algorithm=algorithm
+      DB_USER=your_user
+      DB_PASSWORD=your_password
+      DB_HOST=localhost
+      DB_PORT=5432
+      DB_NAME=bookie
+      GOOGLE_API_KEY=your_google_books_key
+      GEMINI_API_KEY=your_gemini_key
+      SECRET_KEY=your_jwt_secret
+      ALGORITHM=HS256
       ```
 
 3. **WIP:**
@@ -54,13 +54,13 @@ A backend utility to create and manage a personal library powered by Google Book
    ```
 
 ## Engineering Decisions
-* PostgreSQL was chosen for its enterprise ability. The dream for this app is to have it be a book club service.
-* FastAPI was chosen for its type annotations and its dependency injection system. It also made troubleshooting far smoother.
-* SQLAlchemy was chosen for its ability to manage relationships between entities.
-* Alembic was chosen because it was developed by the same author as SQLAlchemy.
-* Gemini was chosen due to its ability to connect to Google Books
+* **PostgreSQL:** Chosen for its enterprise-grade reliability and native support for complex relational data, supporting a future vision of a multi-user "Book Club" service.
+* **FastAPI:** Selected for its robust type annotations and dependency injection system, which significantly streamlined the development and troubleshooting process.
+* **SQLAlchemy & Alembic:** Paired together to manage complex entity relationships and version-controlled database migrations.
+* **Gemini 2.5 Flash:** Utilized for its deep integration with the Google ecosystem and its ability to process reading history for high-context recommendations.
 
-  **Example of a prompt to Gemini**
+  **Structured AI Prompting**
+  This project utilizes Gemini's response_schema to enforce strict JSON output, ensuring the recommendation engine always returns valid, consumable data:
   ```
         context_payload = [schema.model_dump_json(exclude_none=True) for schema in user_profile]
         system_msg = (
@@ -96,3 +96,4 @@ A backend utility to create and manage a personal library powered by Google Book
 
   ## Roadmap
   * [ ] **Expand AI Generation:** Add more AI features such as tag recommendation, and improved book searching.
+  * [ ] **Book Club Service:** Add social features for book clubs such as invitations, chat, and book-of-the-month tracking.
